@@ -4,3 +4,4 @@ Anggota :
 3. Ahmad Ansori
 4. Ahmad Fazal
 5. Yerly Ania Saputri
+6. Osok Rianto Hay

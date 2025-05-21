@@ -400,15 +400,45 @@ class AmApiPage extends StatelessWidget {
   final bool isDarkMode;
   AmApiPage({required this.isDarkMode});
 
+  final List<Map<String, String>> apiList = [
+    {'api': 'Android Notifications'},
+    {'api': 'Base64 Decode'},
+    {'api': 'Dynamic Class and Dexloading'},
+    {'api': 'Crypto'},
+    {'api': 'Get Installed Applications'},
+    {'api': 'Get Running App Processes'},
+    {'api': 'Get System Service'},
+    {'api': 'GPS Location'},
+    {'api': 'GPS Location'},
+    {'api': 'Base64 Encode'},
+  ];
+
   @override
   Widget build(BuildContext context) {
+    Color textColor = isDarkMode ? Colors.white : Colors.black;
+
     return Container(
       color: isDarkMode ? Colors.black : Colors.white,
-      alignment: Alignment.center,
-      child: Text(
-        'Halaman AM API\n\nKonten kosong sesuai desain',
-        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-        textAlign: TextAlign.center,
+      padding: const EdgeInsets.all(16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.vertical,
+        child: DataTable(
+          columns: [
+            DataColumn(label: Text('API', style: TextStyle(color: textColor))),
+            DataColumn(label: Text('Files', style: TextStyle(color: textColor))),
+          ],
+          rows: apiList.map((apiData) {
+            return DataRow(cells: [
+              DataCell(Text(apiData['api']!, style: TextStyle(color: textColor))),
+              DataCell(TextButton(
+                child: const Text('Show Files'),
+                onPressed: () {
+                  // Aksi saat tombol ditekan
+                },
+              )),
+            ]);
+          }).toList(),
+        ),
       ),
     );
   }

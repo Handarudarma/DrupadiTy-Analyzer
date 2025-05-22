@@ -230,7 +230,7 @@ class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateM
   Widget buildTabContent(int index) {
     switch (index) {
       case 0:
-        return InfoPage(isDarkMode: widget.isDarkMode);
+        return InfoPage(isDarkMode: widget.isDarkMode,toggleTheme: widget.toggleTheme,);
       case 1:
         return SignerPage(isDarkMode: widget.isDarkMode);
       case 2:
@@ -284,18 +284,134 @@ class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateM
 
 // Contoh halaman Info
 class InfoPage extends StatelessWidget {
+  final VoidCallback toggleTheme;
   final bool isDarkMode;
-  InfoPage({required this.isDarkMode});
+
+  const InfoPage({super.key, required this.toggleTheme, required this.isDarkMode});
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.verified, color: Colors.green, size: 30),
+                        SizedBox(width: 10),
+                        Text("APP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text("Security Score", style: TextStyle(fontWeight: FontWeight.bold)),
+                              SizedBox(height: 4),
+                              Text("50/100", style: TextStyle(color: Colors.orange, fontSize: 20)),
+                              SizedBox(height: 10),
+                              Text("Trackers Detection", style: TextStyle(fontWeight: FontWeight.bold)),
+                              SizedBox(height: 4),
+                              Text("5/432", style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text("FILE INFORMATION", style: TextStyle(fontWeight: FontWeight.bold)),
+                              SizedBox(height: 4),
+                              Text("File Name: Malware_Apk"),
+                              Text("Size: 50.49MB"),
+                              Text("MD5: 73243JKERWHF9"),
+                              Text("SHA1: 53U543KF3485783"),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text("APP INFORMATION", style: TextStyle(fontWeight: FontWeight.bold)),
+                              SizedBox(height: 4),
+                              Text("File Name: Malware"),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    const Divider(),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: const [
+                        Column(
+                          children: [
+                            Text("Detection Result"),
+                            Text("✔ Clean", style: TextStyle(color: Colors.green)),
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            Text("Community Score"),
+                            Text("16/100", style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                _buildMetricCard("Security Score", "40/100", Colors.blue),
+                _buildMetricCard("Risk Rating", "Grade B", Colors.yellow),
+                _buildMetricCard("Security Distribution", "Pie Chart", Colors.orange),
+                _buildMetricCard("Privacy Risk", "1 Tracker", Colors.red),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              "@Security Analyze By Drupadity",
+              style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildMetricCard(String title, String value, Color color) {
     return Container(
-      color: isDarkMode ? Colors.black : Colors.white,
-      alignment: Alignment.center,
-      child: Text(
-        'Halaman Info\n\nDi sini tampilkan hasil analisis APK',
-        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-        textAlign: TextAlign.center,
+      width: 160,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color),
+      ),
+      child: Column(
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          Text(value, style: TextStyle(color: color, fontSize: 16)),
+        ],
       ),
     );
   }

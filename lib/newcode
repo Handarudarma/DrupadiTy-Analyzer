@@ -563,18 +563,177 @@ class AmApiPage extends StatelessWidget {
 // Contoh halaman Malware
 class MalwarePage extends StatelessWidget {
   final bool isDarkMode;
-  MalwarePage({required this.isDarkMode});
+  final VoidCallback? toggleTheme;
+
+  MalwarePage({required this.isDarkMode, this.toggleTheme});
+  final List<String> malwarePermissions = [
+    'android.permission.WRITE_EXTERNAL_STORAGE',
+    'android.permission.READ_EXTERNAL_STORAGE',
+    'android.permission.READ_CONTACTS',
+    'android.permission.ACCESS_NETWORK_STATE',
+    'android.permission.WAKE_LOCK',
+    'android.permission.CAMERA',
+    'android.permission.READ_PHONE_STATE',
+    'android.permission.ACCESS_WIFI_STATE',
+    'android.permission.ACCESS_FINE_LOCATION',
+    'android.permission.ACCESS_COARSE_LOCATION',
+    'android.permission.INTERNET',
+  ];
+
+  final List<String> commonPermissions = [
+    'com.google.android.gms.permission.AD_ID',
+    'android.permission.FLASHLIGHT',
+    'com.google.android.c2dm.permission.RECEIVE',
+    'com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE',
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: isDarkMode ? Colors.black : Colors.white,
-      alignment: Alignment.center,
-      child: Text(
-        'Halaman Malware\n\nKonten kosong sesuai desain',
-        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-        textAlign: TextAlign.center,
+    return Scaffold(
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          // Malware Title
+          Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red, size: 36),
+              SizedBox(width: 10),
+              Text(
+                'MALWARE',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+
+          // Malware Lookup Box
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            elevation: 3,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.block, size: 24),
+                  SizedBox(height: 8),
+                  Text(
+                    'Malware Lookup',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      reportChip('VirusTotal Report'),
+                      reportChip('Triage Report'),
+                      reportChip('MetaDefender Report'),
+                      reportChip('Hybrid Analysis Report'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+
+          // Abused Permissions Box
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            elevation: 3,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.bug_report_outlined),
+                      SizedBox(width: 8),
+                      Text(
+                        'Abused Permissions',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  // Top Malware Permissions
+                  Text(
+                    'Top Malware Permissions',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 4),
+                  LinearProgressIndicator(value: 11 / 25, color: Colors.red),
+                  SizedBox(height: 8),
+                  for (var perm in malwarePermissions)
+                    Text(perm, style: TextStyle(fontSize: 13)),
+                  Divider(),
+                  // Other Common Permissions
+                  Text(
+                    'Other Common Permissions',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 4),
+                  LinearProgressIndicator(value: 4 / 44, color: Colors.grey),
+                  SizedBox(height: 8),
+                  for (var perm in commonPermissions)
+                    Text(perm, style: TextStyle(fontSize: 13)),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 12),
+
+          Text(
+            'Malware Permissions are the top permissions that are widely abused by known malware.\n\n'
+            'Other Common Permissions are permissions that are commonly abused by known malware.',
+            style: TextStyle(fontSize: 12, color: Colors.black87),
+          ),
+          SizedBox(height: 20),
+
+          Center(
+            child: Text(
+              '@Security Analyze By Drupadity',
+              style: TextStyle(
+                color: Colors.black54,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget navTab(String title, {bool isActive = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: isActive ? Colors.white : Colors.white70,
+          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
+  Widget reportChip(String label) {
+    return Chip(
+      label: Text(label, style: TextStyle(fontSize: 12)),
+      backgroundColor: Colors.blue.shade50,
+      side: BorderSide(color: Colors.grey.shade400),
     );
   }
 }

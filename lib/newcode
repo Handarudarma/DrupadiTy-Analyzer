@@ -43,16 +43,28 @@ class _SecurityAnalyzeAppState extends State<SecurityAnalyzeApp> {
               scaffoldBackgroundColor: Colors.white,
             ),
       initialRoute: '/',
-      routes: {
-        '/': (context) =>
-            AuthGate(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-        '/login': (context) => const LoginPage(),
-        '/register': (context) => const RegisterPage(),
-        '/home': (context) =>
-            HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-        '/profile': (context) =>
-            ProfilePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-      },
+     routes: {
+  '/': (context) =>
+      AuthGate(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+  '/login': (context) => const LoginPage(),
+  '/register': (context) => const RegisterPage(),
+  '/home': (context) =>
+      HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+  '/profile': (context) =>
+      ProfilePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+  '/setting': (context) => SettingPage(
+    toggleTheme: toggleTheme,
+    isDarkMode: isDarkMode,
+  ),
+  '/about': (context) => AboutPage(
+    toggleTheme: toggleTheme,
+    isDarkMode: isDarkMode,
+  ),
+  '/history': (context) => HistoryPage(
+    toggleTheme: toggleTheme,
+    isDarkMode: isDarkMode,
+  ),
+},
     );
   }
 }
@@ -188,7 +200,6 @@ class ProfilePage extends StatefulWidget {
   @override
   _ProfilePageState createState() => _ProfilePageState();
 }
-//profil awal
 class _ProfilePageState extends State<ProfilePage> {
   final user = FirebaseAuth.instance.currentUser;
   late TextEditingController _nameController;
@@ -387,7 +398,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 }
-
 //sampai sini dulu
 
 

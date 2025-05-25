@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart';
+import 'login_page.dart';
+import 'register_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(SecurityAnalyzeApp());
 }
 
@@ -32,7 +41,38 @@ class _SecurityAnalyzeAppState extends State<SecurityAnalyzeApp> {
               primaryColor: Colors.green,
               scaffoldBackgroundColor: Colors.white,
             ),
-      home: HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => AuthGate(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+        '/login': (context) => const LoginPage(),
+        '/register': (context) => const RegisterPage(),
+        '/home': (context) => HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+      },
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  final VoidCallback toggleTheme;
+  final bool isDarkMode;
+
+  const AuthGate({required this.toggleTheme, required this.isDarkMode});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        } else if (snapshot.hasData) {
+          return HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode);
+        } else {
+          return const LoginPage();
+        }
+      },
     );
   }
 }
@@ -230,7 +270,7 @@ class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateM
   Widget buildTabContent(int index) {
     switch (index) {
       case 0:
-        return InfoPage(isDarkMode: widget.isDarkMode,toggleTheme: widget.toggleTheme,);
+        return InfoPage(isDarkMode: widget.isDarkMode);
       case 1:
         return SignerPage(isDarkMode: widget.isDarkMode);
       case 2:
@@ -284,10 +324,8 @@ class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateM
 
 // Contoh halaman Info
 class InfoPage extends StatelessWidget {
-  final VoidCallback toggleTheme;
   final bool isDarkMode;
-
-  const InfoPage({super.key, required this.toggleTheme, required this.isDarkMode});
+  InfoPage({required this.isDarkMode});
 
   @override
   Widget build(BuildContext context) {

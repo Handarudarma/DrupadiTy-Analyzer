@@ -5,6 +5,7 @@ import 'firebase_options.dart';
 import 'login_page.dart';
 import 'register_page.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -43,10 +44,14 @@ class _SecurityAnalyzeAppState extends State<SecurityAnalyzeApp> {
             ),
       initialRoute: '/',
       routes: {
-        '/': (context) => AuthGate(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+        '/': (context) =>
+            AuthGate(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
-        '/home': (context) => HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+        '/home': (context) =>
+            HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+        '/profile': (context) =>
+            ProfilePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
       },
     );
   }
@@ -101,24 +106,25 @@ class AppDrawer extends StatelessWidget {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(color: Colors.teal),
-              child: Text('Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
+              decoration: const BoxDecoration(color: Colors.teal),
+              child: Column(
+                children: [
+                  const CircleAvatar(radius: 24, child: Icon(Icons.person)),
+                  const SizedBox(height: 8),
+                  Text(
+                    FirebaseAuth.instance.currentUser?.displayName ??
+                        'Guest User',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
             ),
             ListTile(
               leading: Icon(Icons.home, color: iconColor),
               title: Text('Home', style: TextStyle(color: textColor)),
               selected: currentPage == 'home',
               onTap: () {
-                if (currentPage != 'home') {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-                    ),
-                  );
-                } else {
-                  Navigator.pop(context);
-                }
+                Navigator.pushReplacementNamed(context, '/home');
               },
             ),
             ListTile(
@@ -126,16 +132,7 @@ class AppDrawer extends StatelessWidget {
               title: Text('History', style: TextStyle(color: textColor)),
               selected: currentPage == 'history',
               onTap: () {
-                if (currentPage != 'history') {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => HistoryPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-                    ),
-                  );
-                } else {
-                  Navigator.pop(context);
-                }
+                Navigator.pushReplacementNamed(context, '/history');
               },
             ),
             ListTile(
@@ -143,16 +140,7 @@ class AppDrawer extends StatelessWidget {
               title: Text('About', style: TextStyle(color: textColor)),
               selected: currentPage == 'about',
               onTap: () {
-                if (currentPage != 'about') {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AboutPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-                    ),
-                  );
-                } else {
-                  Navigator.pop(context);
-                }
+                Navigator.pushReplacementNamed(context, '/about');
               },
             ),
             ListTile(
@@ -160,16 +148,24 @@ class AppDrawer extends StatelessWidget {
               title: Text('Setting', style: TextStyle(color: textColor)),
               selected: currentPage == 'setting',
               onTap: () {
-                if (currentPage != 'setting') {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => SettingPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-                    ),
-                  );
-                } else {
-                  Navigator.pop(context);
-                }
+                Navigator.pushReplacementNamed(context, '/setting');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.person, color: iconColor),
+              title: Text('Profil', style: TextStyle(color: textColor)),
+              selected: currentPage == 'profile',
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/profile');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.logout, color: iconColor),
+              title: Text('Logout', style: TextStyle(color: textColor)),
+              onTap: () async {
+                await FirebaseAuth.instance.signOut();
+                Navigator.pushNamedAndRemoveUntil(
+                    context, '/login', (route) => false);
               },
             ),
           ],
@@ -178,6 +174,222 @@ class AppDrawer extends StatelessWidget {
     );
   }
 }
+
+class ProfilePage extends StatefulWidget {
+  final VoidCallback toggleTheme;
+  final bool isDarkMode;
+
+  const ProfilePage({
+    Key? key,
+    required this.toggleTheme,
+    required this.isDarkMode,
+  }) : super(key: key);
+
+  @override
+  _ProfilePageState createState() => _ProfilePageState();
+}
+//profil awal
+class _ProfilePageState extends State<ProfilePage> {
+  final user = FirebaseAuth.instance.currentUser;
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _noHpController;
+  String _selectedNegara = 'Indonesia';
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController =
+        TextEditingController(text: user?.displayName ?? 'Nama tidak tersedia');
+    _emailController =
+        TextEditingController(text: user?.email ?? 'Email tidak tersedia');
+    _noHpController = TextEditingController(text: '+62 812-3456-7890');
+    _selectedNegara = 'Indonesia';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Profil')),
+      drawer: AppDrawer(
+        currentPage: 'profile',
+        toggleTheme: widget.toggleTheme,
+        isDarkMode: widget.isDarkMode,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
+            const SizedBox(height: 16),
+            const Text('Profil', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _nameController,
+              readOnly: true,
+              decoration: const InputDecoration(labelText: 'Nama'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _emailController,
+              readOnly: true,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _noHpController,
+              readOnly: true,
+              decoration: const InputDecoration(labelText: 'Nomor HP'),
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedNegara,
+              items: ['Indonesia', 'Malaysia', 'Singapura']
+                  .map((n) => DropdownMenuItem(value: n, child: Text(n)))
+                  .toList(),
+              onChanged: null,
+              decoration: const InputDecoration(labelText: 'Negara'),
+              disabledHint: Text(_selectedNegara),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EditProfilePage(
+                      toggleTheme: widget.toggleTheme,
+                      isDarkMode: widget.isDarkMode,
+                      initialName: _nameController.text,
+                      initialEmail: _emailController.text,
+                      initialNoHp: _noHpController.text,
+                      initialNegara: _selectedNegara,
+                    ),
+                  ),
+                );
+
+                if (result != null && mounted) {
+                  setState(() {
+                    _nameController.text = result['name'];
+                    _emailController.text = result['email'];
+                    _noHpController.text = result['noHp'];
+                    _selectedNegara = result['negara'];
+                  });
+                }
+              },
+              child: const Text('Edit Profil'),
+            ),
+            const SizedBox(height: 16),
+            const Text('@Security Analyze By Drupadity',
+                style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+//proil end
+
+//edit profil
+class EditProfilePage extends StatefulWidget {
+  final VoidCallback toggleTheme;
+  final bool isDarkMode;
+  final String initialName;
+  final String initialEmail;
+  final String initialNoHp;
+  final String initialNegara;
+
+  const EditProfilePage({
+    super.key,
+    required this.toggleTheme,
+    required this.isDarkMode,
+    required this.initialName,
+    required this.initialEmail,
+    required this.initialNoHp,
+    required this.initialNegara,
+  });
+
+  @override
+  State<EditProfilePage> createState() => _EditProfilePageState();
+}
+
+class _EditProfilePageState extends State<EditProfilePage> {
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _noHpController;
+  String _selectedNegara = 'Indonesia';
+  bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+    _emailController = TextEditingController(text: widget.initialEmail);
+    _noHpController = TextEditingController(text: widget.initialNoHp);
+    _selectedNegara = widget.initialNegara;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Edit Profil')),
+      drawer: AppDrawer(currentPage: 'edit_profile', toggleTheme: widget.toggleTheme, isDarkMode: widget.isDarkMode),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
+            const SizedBox(height: 16),
+            const Text('Edit Profil', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Nama')),
+            const SizedBox(height: 12),
+            TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'Email')),
+            const SizedBox(height: 12),
+            TextField(
+              obscureText: _obscurePassword,
+              decoration: InputDecoration(
+                labelText: 'Password',
+                suffixIcon: IconButton(
+                  icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _noHpController,
+              decoration: const InputDecoration(labelText: 'Nomor HP'),
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedNegara,
+              items: ['Indonesia', 'Malaysia', 'Singapura']
+                  .map((n) => DropdownMenuItem(value: n, child: Text(n)))
+                  .toList(),
+              onChanged: (val) => setState(() => _selectedNegara = val!),
+              decoration: const InputDecoration(labelText: 'Negara'),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Simpan'),
+            ),
+            const SizedBox(height: 16),
+            const Text('@Security Analyze By Drupadity', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+//sampai sini dulu
+
 
 class HomePage extends StatelessWidget {
   final VoidCallback toggleTheme;

@@ -998,7 +998,6 @@ class MalwarePage extends StatelessWidget {
   }
 }
 
-// Halaman History
 class HistoryPage extends StatelessWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
@@ -1008,11 +1007,19 @@ class HistoryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color textColor = isDarkMode ? Colors.white : Colors.black;
+    Color bgColor = isDarkMode ? Colors.black : Colors.white;
+
+    // Contoh data history
+    List<Map<String, String>> historyList = [
+      {"name": "App ke-0", "date": "24 Apr 2025"},
+      {"name": "App ke-1", "date": "24 Apr 2025"},
+      {"name": "App ke-2", "date": "24 Apr 2025"},
+    ];
 
     return Scaffold(
       drawer: AppDrawer(currentPage: 'history', isDarkMode: isDarkMode, toggleTheme: toggleTheme),
       appBar: AppBar(
-        title: Text('History'),
+        title: Text('Riwayat'),
         backgroundColor: isDarkMode ? Colors.teal : Colors.green,
         actions: [
           IconButton(
@@ -1021,14 +1028,45 @@ class HistoryPage extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Text('Halaman History - Daftar analisis sebelumnya', style: TextStyle(color: textColor)),
+      backgroundColor: bgColor,
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: historyList.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text(
+                    historyList[index]["name"]!,
+                    style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Dianalisis pada ${historyList[index]["date"]!}',
+                    style: TextStyle(color: textColor.withOpacity(0.7)),
+                  ),
+                  trailing: Icon(Icons.arrow_forward_ios, color: textColor, size: 18),
+                  onTap: () {
+                    // Tambahkan aksi jika ingin menampilkan detail
+                  },
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Text(
+              '@Security Analyze By Drupadity',
+              style: TextStyle(color: textColor.withOpacity(0.6), fontSize: 12),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// Halaman About
+
+// About Page
 class AboutPage extends StatelessWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
@@ -1051,12 +1089,61 @@ class AboutPage extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Text('Tentang aplikasi Security Analyze By Drupadity', style: TextStyle(color: textColor)),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Security Analyzer by Drupadity',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'This application is designed to help users easily analyze other apps. '
+              'Its main purpose is to allow users to detect whether an application contains any harmful viruses or malware.',
+              style: TextStyle(fontSize: 16, color: textColor),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Main Feature:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+            ),
+            const SizedBox(height: 10),
+            Text('- Malware scanning and analysis for applications', style: TextStyle(color: textColor)),
+            const SizedBox(height: 20),
+            Text(
+              'Developers:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+            ),
+            const SizedBox(height: 10),
+            Text('Drupadity Team - Universitas Jenderal Achmad Yani Yogyakarta', style: TextStyle(color: textColor)),
+            const SizedBox(height: 10),
+            Text('1. Handaru Darma Putra (222104004)', style: TextStyle(color: textColor)),
+            Text('2. Muhammad Nasikh Afifuddin (222104009)', style: TextStyle(color: textColor)),
+            Text('3. Ahmad Fazal (22210400)', style: TextStyle(color: textColor)),
+            Text('4. Yerly Ania Saputri (222104002)', style: TextStyle(color: textColor)),
+            Text('5. Ahmad Ansori (222104001)', style: TextStyle(color: textColor)),
+            Text('6. Osok Rianto Hay (222104006)', style: TextStyle(color: textColor)),
+            const SizedBox(height: 20),
+            Text(
+              'Application Version:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+            ),
+            Text('Version 1.0.0', style: TextStyle(color: textColor)),
+            const SizedBox(height: 20),
+            Text(
+              'Contact / Feedback:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+            ),
+            Text('Email: Drupadity@gmail.com', style: TextStyle(color: textColor)),
+          ],
+        ),
       ),
     );
   }
 }
+
 
 // Halaman Setting
 class SettingPage extends StatelessWidget {

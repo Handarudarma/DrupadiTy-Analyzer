@@ -1,15 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'firebase_options.dart';
-import 'login_page.dart';
-import 'register_page.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+void main() {
   runApp(SecurityAnalyzeApp());
 }
 
@@ -41,38 +32,7 @@ class _SecurityAnalyzeAppState extends State<SecurityAnalyzeApp> {
               primaryColor: Colors.green,
               scaffoldBackgroundColor: Colors.white,
             ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => AuthGate(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-        '/login': (context) => const LoginPage(),
-        '/register': (context) => const RegisterPage(),
-        '/home': (context) => HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-      },
-    );
-  }
-}
-
-class AuthGate extends StatelessWidget {
-  final VoidCallback toggleTheme;
-  final bool isDarkMode;
-
-  const AuthGate({required this.toggleTheme, required this.isDarkMode});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        } else if (snapshot.hasData) {
-          return HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode);
-        } else {
-          return const LoginPage();
-        }
-      },
+      home: HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
     );
   }
 }
@@ -270,7 +230,7 @@ class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateM
   Widget buildTabContent(int index) {
     switch (index) {
       case 0:
-        return InfoPage(isDarkMode: widget.isDarkMode);
+        return InfoPage(isDarkMode: widget.isDarkMode,toggleTheme: widget.toggleTheme,);
       case 1:
         return SignerPage(isDarkMode: widget.isDarkMode);
       case 2:
@@ -324,18 +284,134 @@ class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateM
 
 // Contoh halaman Info
 class InfoPage extends StatelessWidget {
+  final VoidCallback toggleTheme;
   final bool isDarkMode;
-  InfoPage({required this.isDarkMode});
+
+  const InfoPage({super.key, required this.toggleTheme, required this.isDarkMode});
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.verified, color: Colors.green, size: 30),
+                        SizedBox(width: 10),
+                        Text("APP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text("Security Score", style: TextStyle(fontWeight: FontWeight.bold)),
+                              SizedBox(height: 4),
+                              Text("50/100", style: TextStyle(color: Colors.orange, fontSize: 20)),
+                              SizedBox(height: 10),
+                              Text("Trackers Detection", style: TextStyle(fontWeight: FontWeight.bold)),
+                              SizedBox(height: 4),
+                              Text("5/432", style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text("FILE INFORMATION", style: TextStyle(fontWeight: FontWeight.bold)),
+                              SizedBox(height: 4),
+                              Text("File Name: Malware_Apk"),
+                              Text("Size: 50.49MB"),
+                              Text("MD5: 73243JKERWHF9"),
+                              Text("SHA1: 53U543KF3485783"),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text("APP INFORMATION", style: TextStyle(fontWeight: FontWeight.bold)),
+                              SizedBox(height: 4),
+                              Text("File Name: Malware"),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    const Divider(),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: const [
+                        Column(
+                          children: [
+                            Text("Detection Result"),
+                            Text("✔ Clean", style: TextStyle(color: Colors.green)),
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            Text("Community Score"),
+                            Text("16/100", style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                _buildMetricCard("Security Score", "40/100", Colors.blue),
+                _buildMetricCard("Risk Rating", "Grade B", Colors.yellow),
+                _buildMetricCard("Security Distribution", "Pie Chart", Colors.orange),
+                _buildMetricCard("Privacy Risk", "1 Tracker", Colors.red),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              "@Security Analyze By Drupadity",
+              style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildMetricCard(String title, String value, Color color) {
     return Container(
-      color: isDarkMode ? Colors.black : Colors.white,
-      alignment: Alignment.center,
-      child: Text(
-        'Halaman Info\n\nDi sini tampilkan hasil analisis APK',
-        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-        textAlign: TextAlign.center,
+      width: 160,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color),
+      ),
+      child: Column(
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          Text(value, style: TextStyle(color: color, fontSize: 16)),
+        ],
       ),
     );
   }
@@ -487,18 +563,177 @@ class AmApiPage extends StatelessWidget {
 // Contoh halaman Malware
 class MalwarePage extends StatelessWidget {
   final bool isDarkMode;
-  MalwarePage({required this.isDarkMode});
+  final VoidCallback? toggleTheme;
+
+  MalwarePage({required this.isDarkMode, this.toggleTheme});
+  final List<String> malwarePermissions = [
+    'android.permission.WRITE_EXTERNAL_STORAGE',
+    'android.permission.READ_EXTERNAL_STORAGE',
+    'android.permission.READ_CONTACTS',
+    'android.permission.ACCESS_NETWORK_STATE',
+    'android.permission.WAKE_LOCK',
+    'android.permission.CAMERA',
+    'android.permission.READ_PHONE_STATE',
+    'android.permission.ACCESS_WIFI_STATE',
+    'android.permission.ACCESS_FINE_LOCATION',
+    'android.permission.ACCESS_COARSE_LOCATION',
+    'android.permission.INTERNET',
+  ];
+
+  final List<String> commonPermissions = [
+    'com.google.android.gms.permission.AD_ID',
+    'android.permission.FLASHLIGHT',
+    'com.google.android.c2dm.permission.RECEIVE',
+    'com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE',
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: isDarkMode ? Colors.black : Colors.white,
-      alignment: Alignment.center,
-      child: Text(
-        'Halaman Malware\n\nKonten kosong sesuai desain',
-        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-        textAlign: TextAlign.center,
+    return Scaffold(
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          // Malware Title
+          Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red, size: 36),
+              SizedBox(width: 10),
+              Text(
+                'MALWARE',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+
+          // Malware Lookup Box
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            elevation: 3,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.block, size: 24),
+                  SizedBox(height: 8),
+                  Text(
+                    'Malware Lookup',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      reportChip('VirusTotal Report'),
+                      reportChip('Triage Report'),
+                      reportChip('MetaDefender Report'),
+                      reportChip('Hybrid Analysis Report'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+
+          // Abused Permissions Box
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            elevation: 3,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.bug_report_outlined),
+                      SizedBox(width: 8),
+                      Text(
+                        'Abused Permissions',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  // Top Malware Permissions
+                  Text(
+                    'Top Malware Permissions',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 4),
+                  LinearProgressIndicator(value: 11 / 25, color: Colors.red),
+                  SizedBox(height: 8),
+                  for (var perm in malwarePermissions)
+                    Text(perm, style: TextStyle(fontSize: 13)),
+                  Divider(),
+                  // Other Common Permissions
+                  Text(
+                    'Other Common Permissions',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 4),
+                  LinearProgressIndicator(value: 4 / 44, color: Colors.grey),
+                  SizedBox(height: 8),
+                  for (var perm in commonPermissions)
+                    Text(perm, style: TextStyle(fontSize: 13)),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 12),
+
+          Text(
+            'Malware Permissions are the top permissions that are widely abused by known malware.\n\n'
+            'Other Common Permissions are permissions that are commonly abused by known malware.',
+            style: TextStyle(fontSize: 12, color: Colors.black87),
+          ),
+          SizedBox(height: 20),
+
+          Center(
+            child: Text(
+              '@Security Analyze By Drupadity',
+              style: TextStyle(
+                color: Colors.black54,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget navTab(String title, {bool isActive = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: isActive ? Colors.white : Colors.white70,
+          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
+  Widget reportChip(String label) {
+    return Chip(
+      label: Text(label, style: TextStyle(fontSize: 12)),
+      backgroundColor: Colors.blue.shade50,
+      side: BorderSide(color: Colors.grey.shade400),
     );
   }
 }

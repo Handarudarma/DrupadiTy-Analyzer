@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'login_page.dart';
 import 'register_page.dart';
-
+import 'dart:async'; // ⬅️ Untuk Timer
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,32 +43,71 @@ class _SecurityAnalyzeAppState extends State<SecurityAnalyzeApp> {
               scaffoldBackgroundColor: Colors.white,
             ),
       initialRoute: '/',
-     routes: {
-  '/': (context) =>
-      AuthGate(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-  '/login': (context) => const LoginPage(),
-  '/register': (context) => const RegisterPage(),
-  '/home': (context) =>
-      HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-  '/profile': (context) =>
-      ProfilePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-  '/setting': (context) => SettingPage(
-    toggleTheme: toggleTheme,
-    isDarkMode: isDarkMode,
-  ),
-  '/about': (context) => AboutPage(
-    toggleTheme: toggleTheme,
-    isDarkMode: isDarkMode,
-  ),
-  '/history': (context) => HistoryPage(
-    toggleTheme: toggleTheme,
-    isDarkMode: isDarkMode,
-  ),
-},
+      routes: {
+        '/': (context) => SplashScreen(toggleTheme: toggleTheme, isDarkMode: isDarkMode), // ⬅️ Splash screen di sini
+        '/login': (context) => const LoginPage(),
+        '/register': (context) => const RegisterPage(),
+        '/home': (context) => HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+        '/profile': (context) => ProfilePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+        '/setting': (context) => SettingPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+        '/about': (context) => AboutPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+        '/history': (context) => HistoryPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
+      },
     );
   }
 }
 
+// ✅ Splash Screen Class
+class SplashScreen extends StatefulWidget {
+  final VoidCallback toggleTheme;
+  final bool isDarkMode;
+
+  const SplashScreen({super.key, required this.toggleTheme, required this.isDarkMode});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Timer(const Duration(seconds: 3), () {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFA8FF9A),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset('assets/images/logo.jpg', height: 150),
+            const SizedBox(height: 20),
+            const Text(
+              'DrupadiTy',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.indigo,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ✅ AuthGate dan AppDrawer (tidak diubah)
 class AuthGate extends StatelessWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
@@ -124,8 +163,7 @@ class AppDrawer extends StatelessWidget {
                   const CircleAvatar(radius: 24, child: Icon(Icons.person)),
                   const SizedBox(height: 8),
                   Text(
-                    FirebaseAuth.instance.currentUser?.displayName ??
-                        'Guest User',
+                    FirebaseAuth.instance.currentUser?.displayName ?? 'Guest User',
                     style: const TextStyle(color: Colors.white),
                   ),
                 ],
@@ -176,8 +214,7 @@ class AppDrawer extends StatelessWidget {
               title: Text('Logout', style: TextStyle(color: textColor)),
               onTap: () async {
                 await FirebaseAuth.instance.signOut();
-                Navigator.pushNamedAndRemoveUntil(
-                    context, '/login', (route) => false);
+                Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
               },
             ),
           ],
@@ -187,6 +224,7 @@ class AppDrawer extends StatelessWidget {
   }
 }
 
+//logo//
 class ProfilePage extends StatefulWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;

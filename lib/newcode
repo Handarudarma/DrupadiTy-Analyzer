@@ -4,7 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'login_page.dart';
 import 'register_page.dart';
-import 'dart:async'; // ⬅️ Untuk Timer
+import 'dart:async'; // Timer
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:file_picker/file_picker.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,11 +19,12 @@ void main() async {
 }
 
 class SecurityAnalyzeApp extends StatefulWidget {
+  const SecurityAnalyzeApp({super.key});
   @override
-  _SecurityAnalyzeAppState createState() => _SecurityAnalyzeAppState();
+  SecurityAnalyzeAppState createState() => SecurityAnalyzeAppState();
 }
 
-class _SecurityAnalyzeAppState extends State<SecurityAnalyzeApp> {
+class SecurityAnalyzeAppState extends State<SecurityAnalyzeApp> {
   bool isDarkMode = true;
 
   void toggleTheme() {
@@ -57,7 +62,7 @@ class _SecurityAnalyzeAppState extends State<SecurityAnalyzeApp> {
   }
 }
 
-// ✅ Splash Screen Class
+// Splash Screen Class
 class SplashScreen extends StatefulWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
@@ -107,12 +112,16 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-// ✅ AuthGate dan AppDrawer (tidak diubah)
+// AuthGate dan AppDrawer
 class AuthGate extends StatelessWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
 
-  const AuthGate({required this.toggleTheme, required this.isDarkMode});
+  const AuthGate({
+  super.key,  
+  required this.toggleTheme,
+  required this.isDarkMode,
+});
 
   @override
   Widget build(BuildContext context) {
@@ -139,6 +148,7 @@ class AppDrawer extends StatelessWidget {
   final VoidCallback toggleTheme;
 
   const AppDrawer({
+    super.key,           // <--- tambahkan ini
     required this.currentPage,
     required this.isDarkMode,
     required this.toggleTheme,
@@ -214,6 +224,7 @@ class AppDrawer extends StatelessWidget {
               title: Text('Logout', style: TextStyle(color: textColor)),
               onTap: () async {
                 await FirebaseAuth.instance.signOut();
+                if (!context.mounted) return;
                 Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
               },
             ),
@@ -224,21 +235,20 @@ class AppDrawer extends StatelessWidget {
   }
 }
 
-//logo//
 class ProfilePage extends StatefulWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
 
   const ProfilePage({
-    Key? key,
+    super.key,
     required this.toggleTheme,
     required this.isDarkMode,
-  }) : super(key: key);
+  });
 
   @override
-  _ProfilePageState createState() => _ProfilePageState();
+  ProfilePageState createState() => ProfilePageState();
 }
-class _ProfilePageState extends State<ProfilePage> {
+class ProfilePageState extends State<ProfilePage> {
   final user = FirebaseAuth.instance.currentUser;
   late TextEditingController _nameController;
   late TextEditingController _emailController;
@@ -338,7 +348,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 }
-//proil end
 
 //edit profil
 class EditProfilePage extends StatefulWidget {
@@ -436,14 +445,82 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 }
-//sampai sini dulu
+
+//lg di seting
+Future<void> uploadAndAnalyzeApk(BuildContext context) async {
+  const apiKey = '55ab018480512272a0ef9eb7d471fde09422e956c4e646bdc456ccc25c9f86d2';
+  const baseUrl = 'http://145.79.12.167:8000';
+
+  final result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['apk'],
+    withData: true, // ini penting agar bytes-nya terisi di web
+  );
+
+  if (result == null || result.files.first.bytes == null) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tidak ada file dipilih')));
+    return;
+  }
+
+  final fileBytes = result.files.first.bytes!;
+  final fileName = result.files.first.name;
+
+  try {
+    // Upload APK
+    final uri = Uri.parse('$baseUrl/api/v1/upload');
+    final request = http.MultipartRequest('POST', uri)
+      ..headers['Authorization'] = apiKey
+      ..files.add(http.MultipartFile.fromBytes('file', fileBytes, filename: fileName));
+
+    final response = await request.send();
+    final respStr = await response.stream.bytesToString();
+    final uploadData = jsonDecode(respStr);
+
+    if (uploadData['hash'] == null) {
+      throw Exception(uploadData['error'] ?? 'Gagal upload APK');
+    }
+
+    final apkHash = uploadData['hash'];
+
+    // Lakukan scan
+    final scanResp = await http.post(
+      Uri.parse('$baseUrl/api/v1/scan'),
+      headers: {
+        'Authorization': apiKey,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'hash=$apkHash',
+    );
+
+    final scanData = jsonDecode(scanResp.body);
+    final appName = scanData['app_name'] ?? 'Tidak diketahui';
+    final packageName = scanData['package_name'] ?? 'Tidak diketahui';
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Hasil Analisis'),
+        content: Text('App: $appName\nPackage: $packageName'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Tutup')),
+        ],
+      ),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal analisis APK: $e')));
+  }
+}
 
 
+//sampai sini
+
+
+//homepage
 class HomePage extends StatelessWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
 
-  HomePage({required this.toggleTheme, required this.isDarkMode});
+  const HomePage({super.key, required this.toggleTheme, required this.isDarkMode});
 
   @override
   Widget build(BuildContext context) {
@@ -470,23 +547,19 @@ class HomePage extends StatelessWidget {
             SizedBox(height: 20),
             Text('Only APK', style: TextStyle(color: textColor, fontSize: 24)),
             SizedBox(height: 20),
-            ElevatedButton.icon(
-              icon: Icon(Icons.upload_file),
-              label: Text('Upload & Analyze'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isDarkMode ? Colors.white : Colors.black,
-                foregroundColor: isDarkMode ? Colors.black : Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ResultPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-                  ),
-                );
-              },
-            ),
+           ElevatedButton.icon(
+  icon: Icon(Icons.upload_file),
+  label: Text('Upload & Analyze'),
+  style: ElevatedButton.styleFrom(
+    backgroundColor: isDarkMode ? Colors.white : Colors.black,
+    foregroundColor: isDarkMode ? Colors.black : Colors.white,
+    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+  ),
+  onPressed: () {
+    uploadAndAnalyzeApk(context);
+  },
+),
+
           ],
         ),
       ),
@@ -498,10 +571,10 @@ class ResultPage extends StatefulWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
 
-  ResultPage({required this.toggleTheme, required this.isDarkMode});
+  const ResultPage({super.key, required this.toggleTheme, required this.isDarkMode});
 
   @override
-  _ResultPageState createState() => _ResultPageState();
+  State<ResultPage> createState() => _ResultPageState();
 }
 
 class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateMixin {
@@ -582,10 +655,10 @@ class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateM
   }
 }
 
-// Contoh halaman Info
+// halaman Info
 class InfoPage extends StatelessWidget {
   final bool isDarkMode;
-  InfoPage({required this.isDarkMode});
+  const InfoPage({super.key, required this.isDarkMode});
 
   @override
   Widget build(BuildContext context) {
@@ -700,7 +773,7 @@ class InfoPage extends StatelessWidget {
       width: 160,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withAlpha((0.2 * 255).round()),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color),
       ),
@@ -715,10 +788,10 @@ class InfoPage extends StatelessWidget {
   }
 }
 
-// Contoh halaman Signer
+// halaman Signer
 class SignerPage extends StatelessWidget {
   final bool isDarkMode;
-  SignerPage({required this.isDarkMode});
+  const SignerPage({super.key, required this.isDarkMode});
 
   @override
   Widget build(BuildContext context) {
@@ -761,7 +834,7 @@ Found 1 unique certificates''',
 // Contoh halaman Permission
 class PermissionPage extends StatelessWidget {
   final bool isDarkMode;
-  PermissionPage({required this.isDarkMode});
+  const PermissionPage({super.key, required this.isDarkMode});
 
   @override
   Widget build(BuildContext context) {
@@ -809,10 +882,10 @@ class PermissionPage extends StatelessWidget {
   }
 }
 
-// Contoh halaman AMAPI
+// halaman AMAPI
 class AmApiPage extends StatelessWidget {
   final bool isDarkMode;
-  AmApiPage({required this.isDarkMode});
+  AmApiPage({super.key, required this.isDarkMode});
 
   final List<Map<String, String>> apiList = [
     {'api': 'Android Notifications'},
@@ -858,12 +931,12 @@ class AmApiPage extends StatelessWidget {
   }
 }
 
-// Contoh halaman Malware
+// halaman Malware
 class MalwarePage extends StatelessWidget {
   final bool isDarkMode;
   final VoidCallback? toggleTheme;
 
-  MalwarePage({required this.isDarkMode, this.toggleTheme});
+  MalwarePage({super.key, required this.isDarkMode, this.toggleTheme});
   final List<String> malwarePermissions = [
     'android.permission.WRITE_EXTERNAL_STORAGE',
     'android.permission.READ_EXTERNAL_STORAGE',
@@ -1040,14 +1113,18 @@ class HistoryPage extends StatelessWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
 
-  HistoryPage({required this.toggleTheme, required this.isDarkMode});
+  const HistoryPage({
+    super.key,
+    required this.toggleTheme, 
+    required this.isDarkMode,
+  });
 
   @override
   Widget build(BuildContext context) {
     Color textColor = isDarkMode ? Colors.white : Colors.black;
     Color bgColor = isDarkMode ? Colors.black : Colors.white;
 
-    // Contoh data history
+    //  data history
     List<Map<String, String>> historyList = [
       {"name": "App ke-0", "date": "24 Apr 2025"},
       {"name": "App ke-1", "date": "24 Apr 2025"},
@@ -1080,7 +1157,7 @@ class HistoryPage extends StatelessWidget {
                   ),
                   subtitle: Text(
                     'Dianalisis pada ${historyList[index]["date"]!}',
-                    style: TextStyle(color: textColor.withOpacity(0.7)),
+                    style: TextStyle(color: textColor.withAlpha(179)), // 0.7 * 255 ≈ 179
                   ),
                   trailing: Icon(Icons.arrow_forward_ios, color: textColor, size: 18),
                   onTap: () {
@@ -1094,7 +1171,7 @@ class HistoryPage extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 20),
             child: Text(
               '@Security Analyze By Drupadity',
-              style: TextStyle(color: textColor.withOpacity(0.6), fontSize: 12),
+              style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ),
         ],
@@ -1103,13 +1180,16 @@ class HistoryPage extends StatelessWidget {
   }
 }
 
-
 // About Page
 class AboutPage extends StatelessWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
 
-  AboutPage({required this.toggleTheme, required this.isDarkMode});
+  const AboutPage({
+    super.key,
+    required this.toggleTheme, 
+    required this.isDarkMode,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1182,13 +1262,16 @@ class AboutPage extends StatelessWidget {
   }
 }
 
-
 // Halaman Setting
 class SettingPage extends StatelessWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
 
-  SettingPage({required this.toggleTheme, required this.isDarkMode});
+  const SettingPage({
+    super.key,
+    required this.toggleTheme, 
+    required this.isDarkMode,
+  });
 
   @override
   Widget build(BuildContext context) {

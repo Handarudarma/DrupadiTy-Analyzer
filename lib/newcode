@@ -148,7 +148,7 @@ class AppDrawer extends StatelessWidget {
   final VoidCallback toggleTheme;
 
   const AppDrawer({
-    super.key,           // <--- tambahkan ini
+    super.key,
     required this.currentPage,
     required this.isDarkMode,
     required this.toggleTheme,
@@ -235,6 +235,7 @@ class AppDrawer extends StatelessWidget {
   }
 }
 
+//profil 
 class ProfilePage extends StatefulWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
@@ -446,7 +447,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 }
 
-//lg di seting
+//UPLOAD & ANALYZING APK , API
 Future<void> uploadAndAnalyzeApk(BuildContext context) async {
   const apiKey = '55ab018480512272a0ef9eb7d471fde09422e956c4e646bdc456ccc25c9f86d2';
   const baseUrl = 'http://145.79.12.167:8000';
@@ -454,11 +455,12 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
   final result = await FilePicker.platform.pickFiles(
     type: FileType.custom,
     allowedExtensions: ['apk'],
-    withData: true, // ini penting agar bytes-nya terisi di web
+    withData: true, // bytes-nya terisi di web
   );
 
   if (result == null || result.files.first.bytes == null) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tidak ada file dipilih')));
+if (!context.mounted) return;
+ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tidak ada file dipilih')));
     return;
   }
 
@@ -497,7 +499,7 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
     final packageName = scanData['package_name'] ?? 'Tidak diketahui';
 
     showDialog(
-      context: context,
+      context: context, // Safe to use context here since we check mounted above
       builder: (_) => AlertDialog(
         title: Text('Hasil Analisis'),
         content: Text('App: $appName\nPackage: $packageName'),
@@ -507,12 +509,10 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
       ),
     );
   } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal analisis APK: $e')));
+if (!context.mounted) return;
+ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal analisis APK: $e')));
   }
 }
-
-
-//sampai sini
 
 
 //homepage
@@ -539,33 +539,46 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.android, size: 100, color: iconColor),
-            SizedBox(height: 20),
-            Text('Only APK', style: TextStyle(color: textColor, fontSize: 24)),
-            SizedBox(height: 20),
-           ElevatedButton.icon(
-  icon: Icon(Icons.upload_file),
-  label: Text('Upload & Analyze'),
-  style: ElevatedButton.styleFrom(
-    backgroundColor: isDarkMode ? Colors.white : Colors.black,
-    foregroundColor: isDarkMode ? Colors.black : Colors.white,
-    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-  ),
-  onPressed: () {
-    uploadAndAnalyzeApk(context);
-  },
-),
-
-          ],
-        ),
+      body: Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min, // biar konten gak memenuhi penuh
+                children: [
+                  Icon(Icons.android, size: 100, color: iconColor),
+                  SizedBox(height: 20),
+                  Text('Only APK', style: TextStyle(color: textColor, fontSize: 24)),
+                  SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    icon: Icon(Icons.upload_file),
+                    label: Text('Upload & Analyze'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDarkMode ? Colors.white : Colors.black,
+                      foregroundColor: isDarkMode ? Colors.black : Colors.white,
+                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    onPressed: () {
+                      uploadAndAnalyzeApk(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Text(
+              '@Security Analyze By Drupadity',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
+
 
 class ResultPage extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -831,7 +844,7 @@ Found 1 unique certificates''',
   }
 }
 
-// Contoh halaman Permission
+// halaman Permission
 class PermissionPage extends StatelessWidget {
   final bool isDarkMode;
   const PermissionPage({super.key, required this.isDarkMode});
@@ -1109,6 +1122,7 @@ class MalwarePage extends StatelessWidget {
   }
 }
 
+// Halaman History
 class HistoryPage extends StatelessWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
@@ -1126,15 +1140,15 @@ class HistoryPage extends StatelessWidget {
 
     //  data history
     List<Map<String, String>> historyList = [
-      {"name": "App ke-0", "date": "24 Apr 2025"},
-      {"name": "App ke-1", "date": "24 Apr 2025"},
-      {"name": "App ke-2", "date": "24 Apr 2025"},
+      {"name": "App 0", "date": "24 Apr 2025"},
+      {"name": "App 1", "date": "24 Apr 2025"},
+      {"name": "App 2", "date": "24 Apr 2025"},
     ];
 
     return Scaffold(
       drawer: AppDrawer(currentPage: 'history', isDarkMode: isDarkMode, toggleTheme: toggleTheme),
       appBar: AppBar(
-        title: Text('Riwayat'),
+        title: Text('History'),
         backgroundColor: isDarkMode ? Colors.teal : Colors.green,
         actions: [
           IconButton(
@@ -1156,7 +1170,7 @@ class HistoryPage extends StatelessWidget {
                     style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
-                    'Dianalisis pada ${historyList[index]["date"]!}',
+                    'Analyzed on ${historyList[index]["date"]!}',
                     style: TextStyle(color: textColor.withAlpha(179)), // 0.7 * 255 ≈ 179
                   ),
                   trailing: Icon(Icons.arrow_forward_ios, color: textColor, size: 18),
@@ -1207,56 +1221,69 @@ class AboutPage extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Security Analyzer by Drupadity',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Security Analyzer by Drupadity',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'This application is designed to help users easily analyze other apps. '
+                    'Its main purpose is to allow users to detect whether an application contains any harmful viruses or malware.',
+                    style: TextStyle(fontSize: 16, color: textColor),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Main Feature:',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                  ),
+                  const SizedBox(height: 10),
+                  Text('- Malware scanning and analysis for applications', style: TextStyle(color: textColor)),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Developers:',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                  ),
+                  const SizedBox(height: 10),
+                  Text('Drupadity Team - Universitas Jenderal Achmad Yani Yogyakarta', style: TextStyle(color: textColor)),
+                  const SizedBox(height: 10),
+                  Text('1. Handaru Darma Putra (222104004)', style: TextStyle(color: textColor)),
+                  Text('2. Muhammad Nasikh Afifuddin (222104009)', style: TextStyle(color: textColor)),
+                  Text('3. Ahmad Fazal (22210400)', style: TextStyle(color: textColor)),
+                  Text('4. Yerly Ania Saputri (222104002)', style: TextStyle(color: textColor)),
+                  Text('5. Ahmad Ansori (222104001)', style: TextStyle(color: textColor)),
+                  Text('6. Osok Rianto Hay (222104006)', style: TextStyle(color: textColor)),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Application Version:',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                  ),
+                  Text('Version 1.0.0', style: TextStyle(color: textColor)),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Contact / Feedback:',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                  ),
+                  Text('Email: Drupadity@gmail.com', style: TextStyle(color: textColor)),
+                ],
+              ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              'This application is designed to help users easily analyze other apps. '
-              'Its main purpose is to allow users to detect whether an application contains any harmful viruses or malware.',
-              style: TextStyle(fontSize: 16, color: textColor),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Text(
+              '@Security Analyze By Drupadity',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
-            const SizedBox(height: 20),
-            Text(
-              'Main Feature:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-            ),
-            const SizedBox(height: 10),
-            Text('- Malware scanning and analysis for applications', style: TextStyle(color: textColor)),
-            const SizedBox(height: 20),
-            Text(
-              'Developers:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-            ),
-            const SizedBox(height: 10),
-            Text('Drupadity Team - Universitas Jenderal Achmad Yani Yogyakarta', style: TextStyle(color: textColor)),
-            const SizedBox(height: 10),
-            Text('1. Handaru Darma Putra (222104004)', style: TextStyle(color: textColor)),
-            Text('2. Muhammad Nasikh Afifuddin (222104009)', style: TextStyle(color: textColor)),
-            Text('3. Ahmad Fazal (22210400)', style: TextStyle(color: textColor)),
-            Text('4. Yerly Ania Saputri (222104002)', style: TextStyle(color: textColor)),
-            Text('5. Ahmad Ansori (222104001)', style: TextStyle(color: textColor)),
-            Text('6. Osok Rianto Hay (222104006)', style: TextStyle(color: textColor)),
-            const SizedBox(height: 20),
-            Text(
-              'Application Version:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-            ),
-            Text('Version 1.0.0', style: TextStyle(color: textColor)),
-            const SizedBox(height: 20),
-            Text(
-              'Contact / Feedback:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-            ),
-            Text('Email: Drupadity@gmail.com', style: TextStyle(color: textColor)),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1289,8 +1316,21 @@ class SettingPage extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Text('Pengaturan aplikasi', style: TextStyle(color: textColor)),
+      body: Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: Text('application settings', style: TextStyle(color: textColor)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Text(
+              '@Security Analyze By Drupadity',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+        ],
       ),
     );
   }

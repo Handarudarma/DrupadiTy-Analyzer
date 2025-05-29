@@ -562,6 +562,7 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
       const SnackBar(content: Text('Mengupload APK...'))
     );
 
+    // Upload APK
     final uri = Uri.parse('$baseUrl/api/v1/upload');
     final request = http.MultipartRequest('POST', uri)
       ..headers['Authorization'] = apiKey
@@ -584,7 +585,7 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
 
     final apkHash = uploadData['hash'];
 
-    // Scan APK and get other data
+    // Scan APK
     final scanResp = await http.post(
       Uri.parse('$baseUrl/api/v1/scan'),
       headers: {
@@ -594,6 +595,7 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
       body: 'hash=$apkHash',
     );
 
+    // Get detailed JSON report
     final jsonResp = await http.post(
       Uri.parse('$baseUrl/api/v1/report_json'),
       headers: {
@@ -606,14 +608,13 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
     final scanData = jsonDecode(scanResp.body);
     final jsonData = jsonDecode(jsonResp.body);
 
-    // Debug print untuk melihat data mentah
-    print('=== Certificate Data ===');
-    print(jsonData['certificate_analysis']);
-    print('========================');
+    // Debug print untuk melihat struktur data API
+    print('=== API Response Structure ===');
+    print('Scan Data Keys: ${scanData.keys.toList()}');
+    print('JSON Data Keys: ${jsonData.keys.toList()}');
+    print('API Analysis Data: ${jsonData['android_api']}');
+    print('============================');
 
-    // Get certificate data from the correct location in the response
-    final certificateData = jsonData['certificate_analysis'] ?? {};
-    
     // Combine data from scan and detailed JSON report
     final Map<String, dynamic> analysisData = {
       ...Map<String, dynamic>.from(scanData),
@@ -624,13 +625,13 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
       'total_trackers': 432,
       'app_name': jsonData['app_name'] ?? fileName.split('.').first,
       'permissions': jsonData['permissions'] ?? [],
-      'certificate_analysis': certificateData, // Menggunakan data sertifikat langsung dari API
+      'certificate_analysis': jsonData['certificate_analysis'] ?? {},
+      'api_analysis': jsonData['android_api'] ?? {}, // Menggunakan key yang benar untuk API analysis
       'malware_analysis': {
         'result': jsonData['malware_analysis']?['result'] ?? 'unknown',
         'score': jsonData['average_cvss'] ?? 0,
         'detections': jsonData['malware_analysis']?['findings'] ?? [],
       },
-      'api_analysis': jsonData['api_analysis'] ?? {},
       'app_icon': iconBytes,
     };
 
@@ -1029,7 +1030,7 @@ class InfoPage extends StatelessWidget {
             fontSize: 14,
             height: 1.5,
           ),
-          children: [
+        children: [
             TextSpan(
               text: '$label: ',
               style: const TextStyle(fontWeight: FontWeight.bold),
@@ -1361,102 +1362,207 @@ class PermissionPage extends StatelessWidget {
 }
 
 // halaman AMAPI
-class AmApiPage extends StatelessWidget {
+class AmApiPage extends StatefulWidget {
   final bool isDarkMode;
   final Map<String, dynamic> analysisData;
 
   const AmApiPage({super.key, required this.isDarkMode, required this.analysisData});
 
   @override
+  State<AmApiPage> createState() => _AmApiPageState();
+}
+
+class _AmApiPageState extends State<AmApiPage> {
+  Set<String> expandedItems = {};
+
+  void toggleExpand(String apiName) {
+    setState(() {
+      if (expandedItems.contains(apiName)) {
+        expandedItems.remove(apiName);
+      } else {
+        expandedItems.add(apiName);
+      }
+    });
+  }
+
+  List<Map<String, dynamic>> processApiData() {
+    List<Map<String, dynamic>> apiData = [];
+    
+    try {
+      final apiAnalysis = widget.analysisData['api_analysis'];
+      print('Raw API Analysis Data: $apiAnalysis'); // Debug print untuk raw data
+
+      if (apiAnalysis != null && apiAnalysis is Map) {
+        apiAnalysis.forEach((category, apis) {
+          print('Processing category: $category'); // Debug print untuk kategori
+          print('Category data: $apis'); // Debug print untuk data kategori
+
+          if (apis is Map) {
+            apis.forEach((apiName, details) {
+              print('Processing API: $apiName'); // Debug print untuk nama API
+              print('API details: $details'); // Debug print untuk detail API
+
+              List<String> files = [];
+              if (details is Map) {
+                var filesList = details['files'];
+                print('Files data for $apiName: $filesList'); // Debug print untuk data files
+
+                if (filesList is List) {
+                  files = filesList.map((e) => e.toString()).toList();
+                } else if (filesList is String) {
+                  files = [filesList];
+                }
+              }
+
+              print('Extracted files for $apiName: $files'); // Debug print untuk files yang diekstrak
+
+              apiData.add({
+                'name': '$category - $apiName',
+                'files': files,
+              });
+            });
+          }
+        });
+      }
+    } catch (e, stackTrace) {
+      print('Error processing API data: $e');
+      print('Stack trace: $stackTrace');
+    }
+
+    print('Final processed API data: $apiData'); // Debug print untuk data final
+    return apiData;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    Color textColor = isDarkMode ? Colors.white : Colors.black;
-    
-    final List<dynamic> apis = analysisData['apis'] ?? [];
-    final List<dynamic> suspiciousApis = apis.where((api) => api['risk_level'] == 'high').toList();
-    final List<dynamic> normalApis = apis.where((api) => api['risk_level'] == 'normal').toList();
-    
+    Color textColor = widget.isDarkMode ? Colors.white : Colors.black;
+    final apiData = processApiData();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (suspiciousApis.isNotEmpty) ...[
-              Text(
-              'API Mencurigakan (${suspiciousApis.length})',
-                style: TextStyle(
-                fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                ),
-              ),
-            const SizedBox(height: 16),
-            _buildApiList(suspiciousApis, textColor),
-            const SizedBox(height: 24),
-          ],
           Text(
-            'API Normal (${normalApis.length})',
+            'ANDROID API',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.green,
+              color: textColor,
             ),
           ),
           const SizedBox(height: 16),
-          _buildApiList(normalApis, textColor),
+          if (apiData.isEmpty)
+            Text(
+              'No API calls found',
+              style: TextStyle(color: textColor, fontStyle: FontStyle.italic),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: apiData.length,
+              itemBuilder: (context, index) {
+                final item = apiData[index];
+                final String apiName = item['name'] as String;
+                final List<String> files = List<String>.from(item['files'] ?? []);
+                final bool isExpanded = expandedItems.contains(apiName);
+
+                return Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: index.isEven ? (widget.isDarkMode ? Colors.grey[900] : Colors.grey[100]) : null,
+                        border: Border(
+                          bottom: BorderSide(
+                            color: widget.isDarkMode ? Colors.grey[800]! : Colors.grey[300]!,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              apiName,
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              print('Tapped on API: $apiName'); // Debug print untuk tap
+                              print('Current files: $files'); // Debug print untuk files saat tap
+                              toggleExpand(apiName);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: files.isNotEmpty ? Colors.blue : Colors.grey,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isExpanded ? Icons.folder_open : Icons.folder,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isExpanded ? 'Hide Files' : 'Show Files',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isExpanded && files.isNotEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                        color: widget.isDarkMode ? Colors.grey[900] : Colors.grey[100],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: files.map((file) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.file_present,
+                                  size: 16,
+                                  color: textColor,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    file,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )).toList(),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
         ],
       ),
-    );
-  }
-
-  Widget _buildApiList(List<dynamic> apis, Color textColor) {
-    return Column(
-      children: apis.map((api) => Card(
-        margin: const EdgeInsets.only(bottom: 8),
-            child: Padding(
-          padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                api['name'] ?? 'Unknown API',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              if (api['description'] != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  api['description'],
-                  style: TextStyle(
-                    color: textColor.withOpacity(0.8),
-                  ),
-                ),
-              ],
-              if (api['category'] != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Kategori: ${api['category']}',
-                  style: TextStyle(
-                    color: textColor.withOpacity(0.6),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-              if (api['risk_description'] != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Risiko: ${api['risk_description']}',
-                  style: TextStyle(
-                    color: Colors.orange,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      )).toList(),
     );
   }
 }
@@ -1838,3 +1944,4 @@ class SettingPage extends StatelessWidget {
     );
   }
 }
+

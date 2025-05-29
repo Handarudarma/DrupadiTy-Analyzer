@@ -103,13 +103,14 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     onPressed: () async {
                       final user = await AuthService().signInWithGoogle();
-
+    
                       if (!context.mounted) return;
-
+    
                       if (user != null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Login Google berhasil!')),
                         );
+                        Navigator.pushReplacementNamed(context, '/home'); // Tambahkan navigasi ke home
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Login Google gagal!')),

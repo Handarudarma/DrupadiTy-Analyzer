@@ -13,6 +13,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_archive/flutter_archive.dart';
 import 'package:xml/xml.dart';
+import 'models/permission_model.dart';
 
 
 void main() async {
@@ -605,6 +606,14 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
     final scanData = jsonDecode(scanResp.body);
     final jsonData = jsonDecode(jsonResp.body);
 
+    // Debug print untuk melihat data mentah
+    print('=== Certificate Data ===');
+    print(jsonData['certificate_analysis']);
+    print('========================');
+
+    // Get certificate data from the correct location in the response
+    final certificateData = jsonData['certificate_analysis'] ?? {};
+    
     // Combine data from scan and detailed JSON report
     final Map<String, dynamic> analysisData = {
       ...Map<String, dynamic>.from(scanData),
@@ -615,16 +624,16 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
       'total_trackers': 432,
       'app_name': jsonData['app_name'] ?? fileName.split('.').first,
       'permissions': jsonData['permissions'] ?? [],
-      'signer_certificate': jsonData['certificate_analysis'] ?? {},
+      'certificate_analysis': certificateData, // Menggunakan data sertifikat langsung dari API
       'malware_analysis': {
         'result': jsonData['malware_analysis']?['result'] ?? 'unknown',
         'score': jsonData['average_cvss'] ?? 0,
         'detections': jsonData['malware_analysis']?['findings'] ?? [],
       },
       'api_analysis': jsonData['api_analysis'] ?? {},
-      'app_icon': iconBytes, // Menggunakan ikon yang diekstrak dari APK
+      'app_icon': iconBytes,
     };
-    
+
     if (!context.mounted) return;
     
     Navigator.push(
@@ -813,19 +822,19 @@ class InfoPage extends StatelessWidget {
     Color textColor = isDarkMode ? Colors.white : Colors.black;
     
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+        padding: const EdgeInsets.all(16),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          children: [
           // APP SCORES
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
+                  children: [
+                    Row(
+                      children: [
                       if (analysisData['app_icon'] != null)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
@@ -851,9 +860,9 @@ class InfoPage extends StatelessWidget {
                           ),
                         ),
                       const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               analysisData['app_name'] ?? 'Unknown App',
@@ -880,13 +889,13 @@ class InfoPage extends StatelessWidget {
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.orange,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                             const SizedBox(height: 8),
-                            Row(
-                              children: [
+                    Row(
+                          children: [
                                 Text(
                                   'Trackers Detection ',
                                   style: TextStyle(
@@ -910,11 +919,11 @@ class InfoPage extends StatelessWidget {
                       ),
                     ],
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
           // FILE INFORMATION
           Card(
@@ -922,7 +931,7 @@ class InfoPage extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              children: [
                   Text(
                     'FILE INFORMATION',
                     style: TextStyle(
@@ -950,7 +959,7 @@ class InfoPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+            Text(
                     'APP INFORMATION',
                     style: TextStyle(
                       fontSize: 18,
@@ -966,9 +975,9 @@ class InfoPage extends StatelessWidget {
                   _buildInfoRow('Min SDK', analysisData['min_sdk'] ?? ''),
                   _buildInfoRow('Android Version Name', analysisData['version_name'] ?? ''),
                   _buildInfoRow('Android Version Code', analysisData['version_code']?.toString() ?? ''),
-                ],
-              ),
-            ),
+          ],
+        ),
+      ),
           ),
 
           // PLAYSTORE INFORMATION
@@ -976,10 +985,10 @@ class InfoPage extends StatelessWidget {
             const SizedBox(height: 16),
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+      padding: const EdgeInsets.all(16),
+      child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+        children: [
                     Text(
                       'PLAYSTORE INFORMATION',
                       style: TextStyle(
@@ -1012,29 +1021,22 @@ class InfoPage extends StatelessWidget {
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 160,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-              ),
-            ),
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: RichText(
+        text: TextSpan(
+          style: TextStyle(
+            color: isDarkMode ? Colors.white : Colors.black,
+            fontSize: 14,
+            height: 1.5,
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                color: isDarkMode ? Colors.white : Colors.black,
-              ),
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-          ),
-        ],
+            TextSpan(text: value),
+          ],
+        ),
       ),
     );
   }
@@ -1050,105 +1052,90 @@ class SignerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color textColor = isDarkMode ? Colors.white : Colors.black;
-    
+    final certData = analysisData['certificate_analysis'] ?? {};
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
+                  Icon(Icons.security, color: textColor),
+                  const SizedBox(width: 8),
                   Text(
-                    'Informasi Signer',
+                    'SIGNER CERTIFICATE',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: textColor,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  _buildSignerInfo('Signer Certificate', analysisData['signer_certificate'] ?? 'Tidak tersedia'),
-                  _buildSignerInfo('Signer DN', analysisData['signer_dn'] ?? 'Tidak tersedia'),
-                  _buildSignerInfo('Serial Number', analysisData['serial_number']?.toString() ?? 'Tidak tersedia'),
-                  _buildSignerInfo('Version', analysisData['version']?.toString() ?? 'Tidak tersedia'),
-                  _buildSignerInfo('Valid From', _formatDate(analysisData['valid_from'])),
-                  _buildSignerInfo('Valid Until', _formatDate(analysisData['valid_until'])),
                 ],
               ),
-            ),
-          ),
-          if (analysisData['signature_algorithm'] != null) ...[
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Algoritma Signature',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      analysisData['signature_algorithm'],
-                      style: TextStyle(color: textColor),
-                    ),
-                  ],
+              const SizedBox(height: 16),
+              _buildInfoRow('Binary is signed', 'True'),
+              _buildInfoRow('v1 signature', _boolToStr(certData['v1_signature'])),
+              _buildInfoRow('v2 signature', _boolToStr(certData['v2_signature'])),
+              _buildInfoRow('v3 signature', _boolToStr(certData['v3_signature'])),
+              _buildInfoRow('v4 signature', _boolToStr(certData['v4_signature'])),
+              _buildInfoRow('X.509 Subject', certData['subject'] ?? ''),
+              _buildInfoRow('Signature Algorithm', certData['signature_algorithm'] ?? ''),
+              _buildInfoRow('Valid From', certData['valid_from'] ?? ''),
+              _buildInfoRow('Valid To', certData['valid_to'] ?? ''),
+              _buildInfoRow('Issuer', certData['issuer'] ?? ''),
+              _buildInfoRow('Serial Number', certData['serial_number'] != null ? '0x${certData['serial_number'].toString().toLowerCase()}' : ''),
+              _buildInfoRow('Hash Algorithm', certData['hash_algorithm'] ?? ''),
+              _buildInfoRow('md5', (certData['md5'] ?? '').toLowerCase()),
+              _buildInfoRow('sha1', (certData['sha1'] ?? '').toLowerCase()),
+              _buildInfoRow('sha256', (certData['sha256'] ?? '').toLowerCase()),
+              _buildInfoRow('sha512', (certData['sha512'] ?? '').toLowerCase()),
+              _buildInfoRow('PublicKey Algorithm', certData['public_key_algorithm'] ?? ''),
+              _buildInfoRow('Bit Size', certData['key_size']?.toString() ?? ''),
+              _buildInfoRow('Fingerprint', (certData['fingerprint'] ?? '').toLowerCase()),
+              const SizedBox(height: 8),
+              Text(
+                'Found 1 unique certificates',
+                style: TextStyle(
+                  color: textColor,
+                  fontStyle: FontStyle.italic,
                 ),
               ),
-            ),
-          ],
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildSignerInfo(String label, String value) {
+  String _boolToStr(dynamic value) {
+    if (value is bool) return value ? 'True' : 'False';
+    if (value is String) return value.toLowerCase() == 'true' ? 'True' : 'False';
+    return 'False';
+  }
+
+  Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-              ),
-            ),
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: RichText(
+        text: TextSpan(
+          style: TextStyle(
+            color: isDarkMode ? Colors.white : Colors.black,
+            fontSize: 14,
+            height: 1.5,
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                color: isDarkMode ? Colors.white : Colors.black,
-              ),
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-          ),
-        ],
+            TextSpan(text: value),
+          ],
+        ),
       ),
     );
-  }
-
-  String _formatDate(dynamic date) {
-    if (date == null) return 'Tidak tersedia';
-    try {
-      final DateTime dateTime = DateTime.parse(date.toString());
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
-    } catch (e) {
-      return date.toString();
-    }
   }
 }
 
@@ -1163,80 +1150,212 @@ class PermissionPage extends StatelessWidget {
   Widget build(BuildContext context) {
     Color textColor = isDarkMode ? Colors.white : Colors.black;
     
-    final List<dynamic> permissions = analysisData['permissions'] ?? [];
-    final List<dynamic> dangerousPermissions = permissions.where((p) => p['risk_level'] == 'dangerous').toList();
-    final List<dynamic> normalPermissions = permissions.where((p) => p['risk_level'] == 'normal').toList();
+    // Debug print untuk memeriksa data yang diterima
+    print('=== Permission Data ===');
+    print(analysisData['permissions']);
+    print('=====================');
+
+    // Konversi data permissions ke format yang sesuai
+    List<Map<String, dynamic>> permissionsData = [];
+    
+    if (analysisData['permissions'] != null) {
+      if (analysisData['permissions'] is Map) {
+        // Jika permissions adalah Map, konversi ke List
+        (analysisData['permissions'] as Map).forEach((key, value) {
+          if (value is Map) {
+            permissionsData.add({
+              'name': key.toString(),
+              'status': value['status'] ?? value['risk_level'] ?? 'normal',
+              'info': value['info'] ?? value['short_description'] ?? '',
+              'description': value['description'] ?? '',
+            });
+          }
+        });
+      } else if (analysisData['permissions'] is List) {
+        // Jika permissions sudah berupa List
+        permissionsData = (analysisData['permissions'] as List).map((item) {
+          if (item is Map<String, dynamic>) {
+            return {
+              'name': item['name'] ?? '',
+              'status': item['status'] ?? item['risk_level'] ?? 'normal',
+              'info': item['info'] ?? item['short_description'] ?? '',
+              'description': item['description'] ?? '',
+            };
+          }
+          return <String, dynamic>{};
+        }).toList();
+      }
+    }
+
+    final List<Permission> permissions = Permission.fromJsonList(permissionsData);
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Izin Berbahaya (${dangerousPermissions.length})',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.red,
-            ),
+          Row(
+            children: [
+              Icon(Icons.security_outlined, color: textColor),
+              const SizedBox(width: 8),
+              Text(
+                'APPLICATION PERMISSIONS',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
-          _buildPermissionList(dangerousPermissions, textColor),
-          const SizedBox(height: 24),
-          Text(
-            'Izin Normal (${normalPermissions.length})',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.green,
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'PERMISSION',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'STATUS',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'INFO',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'DESCRIPTION',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          _buildPermissionList(normalPermissions, textColor),
+          if (permissions.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'No permissions found',
+                style: TextStyle(color: textColor, fontStyle: FontStyle.italic),
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: permissions.length,
+              itemBuilder: (context, index) {
+                final permission = permissions[index];
+                return Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isDarkMode ? Colors.grey[800]! : Colors.grey[300]!,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          permission.name,
+                          style: TextStyle(color: textColor),
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildStatusBadge(permission.status),
+                      ),
+                      Expanded(
+                        child: Text(
+                          permission.info,
+                          style: TextStyle(color: textColor),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          permission.description,
+                          style: TextStyle(color: textColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              'Showing ${permissions.length} entries',
+              style: TextStyle(color: textColor),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPermissionList(List<dynamic> permissions, Color textColor) {
-    return Column(
-      children: permissions.map((permission) => Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                permission['name'] ?? 'Unknown Permission',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              if (permission['description'] != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  permission['description'],
-                  style: TextStyle(
-                    color: textColor.withOpacity(0.8),
-                  ),
-                ),
-              ],
-              if (permission['protection_level'] != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Protection Level: ${permission['protection_level']}',
-                  style: TextStyle(
-                    color: textColor.withOpacity(0.6),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ],
-          ),
+  Widget _buildStatusBadge(String status) {
+    Color backgroundColor;
+    Color textColor = Colors.white;
+    
+    switch (status.toLowerCase()) {
+      case 'dangerous':
+        backgroundColor = Colors.red;
+        break;
+      case 'normal':
+        backgroundColor = Colors.blue;
+        break;
+      case 'signature':
+        backgroundColor = Colors.green;
+        break;
+      default:
+        backgroundColor = Colors.grey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 12,
         ),
-      )).toList(),
+      ),
     );
   }
 }
@@ -1262,14 +1381,14 @@ class AmApiPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (suspiciousApis.isNotEmpty) ...[
-            Text(
+              Text(
               'API Mencurigakan (${suspiciousApis.length})',
-              style: TextStyle(
+                style: TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
               ),
-            ),
             const SizedBox(height: 16),
             _buildApiList(suspiciousApis, textColor),
             const SizedBox(height: 24),
@@ -1293,12 +1412,12 @@ class AmApiPage extends StatelessWidget {
     return Column(
       children: apis.map((api) => Card(
         margin: const EdgeInsets.only(bottom: 8),
-        child: Padding(
+            child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
                 api['name'] ?? 'Unknown API',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
@@ -1374,11 +1493,11 @@ class MalwarePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                      Text(
                     'Hasil Analisis Malware',
-                    style: TextStyle(
+                        style: TextStyle(
                       fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                       color: textColor,
                     ),
                   ),
@@ -1400,7 +1519,7 @@ class MalwarePage extends StatelessWidget {
           ),
           if (detections.isNotEmpty) ...[
             const SizedBox(height: 24),
-            Text(
+                  Text(
               'Deteksi Malware (${detections.length})',
               style: TextStyle(
                 fontSize: 20,
@@ -1425,7 +1544,7 @@ class MalwarePage extends StatelessWidget {
                     ),
                     if (detection['description'] != null) ...[
                       const SizedBox(height: 8),
-                      Text(
+          Text(
                         detection['description'],
                         style: TextStyle(
                           color: textColor.withOpacity(0.8),
@@ -1436,14 +1555,14 @@ class MalwarePage extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(
                         'Tingkat Keparahan: ${detection['severity']}',
-                        style: TextStyle(
+              style: TextStyle(
                           color: _getSeverityColor(detection['severity']),
                           fontWeight: FontWeight.bold,
-                        ),
-                      ),
+              ),
+            ),
                     ],
                   ],
-                ),
+          ),
               ),
             )).toList(),
           ],
@@ -1480,7 +1599,7 @@ class MalwarePage extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           riskText,
-          style: TextStyle(
+        style: TextStyle(
             color: riskColor,
             fontSize: 18,
             fontWeight: FontWeight.bold,

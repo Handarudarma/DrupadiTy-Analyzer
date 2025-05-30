@@ -8,7 +8,6 @@ final Logger logger = Logger();
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Tambahkan clientId jika dijalankan di Web
   late final GoogleSignIn _googleSignIn = kIsWeb
       ? GoogleSignIn(
           clientId:
@@ -38,6 +37,42 @@ class AuthService {
     } catch (e, stackTrace) {
       logger.e("Login gagal", error: e, stackTrace: stackTrace);
       return null;
+    }
+  }
+
+  Future<UserCredential?> registerWithEmailAndPassword(
+    String email,
+    String password,
+    String name,
+    String phone,
+  ) async {
+    try {
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      await userCredential.user?.updateDisplayName(name);
+
+      logger.i("Registrasi berhasil untuk user: ${userCredential.user?.email}");
+      return userCredential;
+    } catch (e, stackTrace) {
+      logger.e("Registrasi gagal", error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<UserCredential?> signInWithEmailAndPassword(String email, String password) async {
+    try {
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      logger.i("Login berhasil untuk user: ${userCredential.user?.email}");
+      return userCredential;
+    } catch (e, stackTrace) {
+      logger.e("Login dengan email gagal", error: e, stackTrace: stackTrace);
+      rethrow;
     }
   }
 }

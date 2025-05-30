@@ -1,7 +1,64 @@
 import 'package:flutter/material.dart';
+import 'auth_service.dart';
 
-class RegisterPage extends StatelessWidget {
+class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  // Controller untuk setiap TextField
+  final TextEditingController _namaController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+
+  final AuthService _authService = AuthService();
+
+  Future<void> _register() async {
+    try {
+      if (_passwordController.text != _confirmPasswordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password tidak sama')),
+        );
+        return;
+      }
+
+      await _authService.registerWithEmailAndPassword(
+        _emailController.text,
+        _passwordController.text,
+        _namaController.text,
+        _phoneController.text,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registrasi berhasil')),
+        );
+        Navigator.pushReplacementNamed(context, '/login'); // Kembali ke halaman login
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registrasi gagal: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    // Membersihkan controller saat widget di dispose
+    _namaController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _phoneController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +127,7 @@ class RegisterPage extends StatelessWidget {
 
                     const SizedBox(height: 20),
 
-                    // Tombol daftar
+                    // Update tombol daftar
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -81,7 +138,7 @@ class RegisterPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        onPressed: () {},
+                        onPressed: _register,  // Tambahkan fungsi register
                         child: const Text(
                           'Buat Akun',
                           style: TextStyle(fontSize: 16),
@@ -171,7 +228,30 @@ class RegisterPage extends StatelessWidget {
   }
 
   Widget _buildTextField(String label, bool obscure) {
+    // Menentukan controller berdasarkan label
+    TextEditingController controller;
+    switch (label) {
+      case 'Nama':
+        controller = _namaController;
+        break;
+      case 'Email':
+        controller = _emailController;
+        break;
+      case 'Password':
+        controller = _passwordController;
+        break;
+      case 'Nomor Telepon':
+        controller = _phoneController;
+        break;
+      case 'Ulangi Password':
+        controller = _confirmPasswordController;
+        break;
+      default:
+        controller = TextEditingController();
+    }
+
     return TextField(
+      controller: controller,
       obscureText: obscure,
       style: const TextStyle(color: Colors.black),
       decoration: InputDecoration(

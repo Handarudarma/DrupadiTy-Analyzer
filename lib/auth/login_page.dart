@@ -8,7 +8,40 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
+
 class _LoginPageState extends State<LoginPage> {
+ //controler untuk setiap fiel 
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  final AuthService _authService = AuthService();
+
+  Future<void> _login() async {
+  final email = _emailController.text.trim();
+  final password = _passwordController.text.trim();
+
+  if (email.isEmpty || password.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Email dan password tidak boleh kosong')),
+    );
+    return;
+  }
+
+  try {
+    final userCredential = await _authService.signInWithEmailAndPassword(email, password);
+    if (userCredential != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login berhasil')),
+      );
+      Navigator.pushReplacementNamed(context, '/home');
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Login gagal: $e')),
+    );
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,9 +78,9 @@ class _LoginPageState extends State<LoginPage> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-                  _buildTextField('Email', false),
+                  _buildTextField('Email', false, _emailController),
                   const SizedBox(height: 16),
-                  _buildTextField('Password', true),
+                  _buildTextField('Password', true, _passwordController),
                   const SizedBox(height: 16),
 
                   // Tombol Masuk
@@ -61,7 +94,7 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: _login,
                       child: const Text(
                         'Masuk',
                         style: TextStyle(fontSize: 16),
@@ -75,7 +108,7 @@ class _LoginPageState extends State<LoginPage> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () {},
+                      onPressed: _login,
                       child: const Text(
                         'Lupa password?',
                         style: TextStyle(
@@ -158,9 +191,10 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildTextField(String label, bool obscure) {
-    return TextField(
-      obscureText: obscure,
+  Widget _buildTextField(String label, bool obscure, TextEditingController controller) {
+  return TextField(
+    controller: controller,
+    obscureText: obscure,
       style: const TextStyle(color: Colors.black),
       decoration: InputDecoration(
         hintText: label,

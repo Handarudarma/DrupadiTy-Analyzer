@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter_archive/flutter_archive.dart';
 import 'package:xml/xml.dart';
 import 'models/permission_model.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 
 void main() async {
@@ -532,7 +533,7 @@ Future<Uint8List?> extractAppIcon(Uint8List apkBytes, String fileName) async {
   }
 }
 
-Future<void> uploadAndAnalyzeApk(BuildContext context) async {
+Future<void> uploadAndAnalyzeApk(BuildContext context, VoidCallback toggleTheme, bool isDarkMode) async {
   const apiKey = '55ab018480512272a0ef9eb7d471fde09422e956c4e646bdc456ccc25c9f86d2';
   const baseUrl = 'http://145.79.12.167:8000';
 
@@ -641,8 +642,8 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
       context,
       MaterialPageRoute(
         builder: (context) => ResultPage(
-          toggleTheme: () {},
-          isDarkMode: true,
+          toggleTheme: toggleTheme,
+          isDarkMode: isDarkMode,
           analysisData: analysisData,
         ),
       ),
@@ -701,7 +702,7 @@ class HomePage extends StatelessWidget {
                       padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                     onPressed: () {
-                      uploadAndAnalyzeApk(context);
+                      uploadAndAnalyzeApk(context, toggleTheme, isDarkMode);
                     },
                   ),
                 ],
@@ -777,21 +778,23 @@ class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     Color tabBarBg = widget.isDarkMode ? Colors.grey[900]! : Colors.grey[300]!;
     Color indicatorColor = widget.isDarkMode ? Colors.tealAccent : Colors.green;
+    Color textColor = widget.isDarkMode ? Colors.white : Colors.black;
 
     return Scaffold(
+      backgroundColor: widget.isDarkMode ? Colors.black : Colors.white,
       drawer: AppDrawer(currentPage: 'result', isDarkMode: widget.isDarkMode, toggleTheme: widget.toggleTheme),
       appBar: AppBar(
-        title: Text('Analysis Results'),
+        title: const Text('Analysis Results'),
         backgroundColor: widget.isDarkMode ? Colors.teal : Colors.green,
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(kToolbarHeight),
+          preferredSize: const Size.fromHeight(kToolbarHeight),
           child: Container(
             color: tabBarBg,
             child: TabBar(
               controller: _tabController,
               tabs: myTabs,
               indicatorColor: indicatorColor,
-              labelColor: widget.isDarkMode ? Colors.white : Colors.black,
+              labelColor: textColor,
               unselectedLabelColor: widget.isDarkMode ? Colors.grey[400] : Colors.grey[700],
             ),
           ),
@@ -821,21 +824,23 @@ class InfoPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color textColor = isDarkMode ? Colors.white : Colors.black;
+    Color cardColor = isDarkMode ? Colors.grey[900]! : Colors.white;
     
     return SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      padding: const EdgeInsets.all(16),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-          // APP SCORES
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+        children: [
+          Card(
+            color: cardColor,
+            elevation: isDarkMode ? 0 : 1,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
+                children: [
+                  Row(
+                    children: [
                       if (analysisData['app_icon'] != null)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
@@ -861,9 +866,9 @@ class InfoPage extends StatelessWidget {
                           ),
                         ),
                       const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               analysisData['app_name'] ?? 'Unknown App',
@@ -890,13 +895,13 @@ class InfoPage extends StatelessWidget {
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: 8),
-                    Row(
-                          children: [
+                            Row(
+                              children: [
                                 Text(
                                   'Trackers Detection ',
                                   style: TextStyle(
@@ -920,19 +925,21 @@ class InfoPage extends StatelessWidget {
                       ),
                     ],
                   ),
-                  ],
-                ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
+          ),
+          const SizedBox(height: 16),
 
           // FILE INFORMATION
           Card(
+            color: cardColor,
+            elevation: isDarkMode ? 0 : 1,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+                children: [
                   Text(
                     'FILE INFORMATION',
                     style: TextStyle(
@@ -955,12 +962,14 @@ class InfoPage extends StatelessWidget {
 
           // APP INFORMATION
           Card(
+            color: cardColor,
+            elevation: isDarkMode ? 0 : 1,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-            Text(
+                  Text(
                     'APP INFORMATION',
                     style: TextStyle(
                       fontSize: 18,
@@ -976,20 +985,22 @@ class InfoPage extends StatelessWidget {
                   _buildInfoRow('Min SDK', analysisData['min_sdk'] ?? ''),
                   _buildInfoRow('Android Version Name', analysisData['version_name'] ?? ''),
                   _buildInfoRow('Android Version Code', analysisData['version_code']?.toString() ?? ''),
-          ],
-        ),
-      ),
+                ],
+              ),
+            ),
           ),
 
           // PLAYSTORE INFORMATION
           if (analysisData['playstore_details'] != null) ...[
             const SizedBox(height: 16),
             Card(
+              color: cardColor,
+              elevation: isDarkMode ? 0 : 1,
               child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+                padding: const EdgeInsets.all(16),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+                  children: [
                     Text(
                       'PLAYSTORE INFORMATION',
                       style: TextStyle(
@@ -1053,10 +1064,19 @@ class SignerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color textColor = isDarkMode ? Colors.white : Colors.black;
-    final certData = analysisData['certificate_analysis'] ?? {};
+    Color cardColor = isDarkMode ? Colors.grey[900]! : Colors.white;
+    print('=== CERTIFICATE DATA ===');
+    print(analysisData['certificate_analysis']);
+    print('========================');
+    var certData = analysisData['certificate_analysis'] ?? {};
+    if (certData is List && certData.isNotEmpty) {
+      certData = certData.first;
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Card(
+        color: cardColor,
+        elevation: isDarkMode ? 0 : 1,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1077,63 +1097,25 @@ class SignerPage extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              _buildInfoRow('Binary is signed', 'True'),
-              _buildInfoRow('v1 signature', _boolToStr(certData['v1_signature'])),
-              _buildInfoRow('v2 signature', _boolToStr(certData['v2_signature'])),
-              _buildInfoRow('v3 signature', _boolToStr(certData['v3_signature'])),
-              _buildInfoRow('v4 signature', _boolToStr(certData['v4_signature'])),
-              _buildInfoRow('X.509 Subject', certData['subject'] ?? ''),
-              _buildInfoRow('Signature Algorithm', certData['signature_algorithm'] ?? ''),
-              _buildInfoRow('Valid From', certData['valid_from'] ?? ''),
-              _buildInfoRow('Valid To', certData['valid_to'] ?? ''),
-              _buildInfoRow('Issuer', certData['issuer'] ?? ''),
-              _buildInfoRow('Serial Number', certData['serial_number'] != null ? '0x${certData['serial_number'].toString().toLowerCase()}' : ''),
-              _buildInfoRow('Hash Algorithm', certData['hash_algorithm'] ?? ''),
-              _buildInfoRow('md5', (certData['md5'] ?? '').toLowerCase()),
-              _buildInfoRow('sha1', (certData['sha1'] ?? '').toLowerCase()),
-              _buildInfoRow('sha256', (certData['sha256'] ?? '').toLowerCase()),
-              _buildInfoRow('sha512', (certData['sha512'] ?? '').toLowerCase()),
-              _buildInfoRow('PublicKey Algorithm', certData['public_key_algorithm'] ?? ''),
-              _buildInfoRow('Bit Size', certData['key_size']?.toString() ?? ''),
-              _buildInfoRow('Fingerprint', (certData['fingerprint'] ?? '').toLowerCase()),
-              const SizedBox(height: 8),
-              Text(
-                'Found 1 unique certificates',
-                style: TextStyle(
-                  color: textColor,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
+              Text(certData['certificate_info'] ?? 'No certificate info', style: TextStyle(color: textColor)),
+              const SizedBox(height: 16),
+              if (certData['certificate_findings'] != null) ...[
+                Text('Findings:', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+                ...List.generate((certData['certificate_findings'] as List).length, (i) {
+                  final finding = certData['certificate_findings'][i];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text('- ${finding.join(' | ')}', style: TextStyle(color: textColor, fontSize: 13)),
+                  );
+                }),
+                const SizedBox(height: 8),
+              ],
+              if (certData['certificate_summary'] != null) ...[
+                Text('Summary:', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+                ...((certData['certificate_summary'] as Map).entries.map((e) => Text('${e.key}: ${e.value}', style: TextStyle(color: textColor, fontSize: 13)))),
+              ],
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  String _boolToStr(dynamic value) {
-    if (value is bool) return value ? 'True' : 'False';
-    if (value is String) return value.toLowerCase() == 'true' ? 'True' : 'False';
-    return 'False';
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: RichText(
-        text: TextSpan(
-          style: TextStyle(
-            color: isDarkMode ? Colors.white : Colors.black,
-            fontSize: 14,
-            height: 1.5,
-          ),
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            TextSpan(text: value),
-          ],
         ),
       ),
     );
@@ -1150,6 +1132,8 @@ class PermissionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color textColor = isDarkMode ? Colors.white : Colors.black;
+    Color headerBgColor = isDarkMode ? Colors.grey[800]! : Colors.grey[200]!;
+    Color cardColor = isDarkMode ? Colors.grey[900]! : Colors.white;
     
     // Debug print untuk memeriksa data yang diterima
     print('=== Permission Data ===');
@@ -1213,7 +1197,7 @@ class PermissionPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
             decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+              color: headerBgColor,
               borderRadius: BorderRadius.circular(4),
             ),
             child: Row(
@@ -1362,206 +1346,87 @@ class PermissionPage extends StatelessWidget {
 }
 
 // halaman AMAPI
-class AmApiPage extends StatefulWidget {
+class AmApiPage extends StatelessWidget {
   final bool isDarkMode;
   final Map<String, dynamic> analysisData;
 
   const AmApiPage({super.key, required this.isDarkMode, required this.analysisData});
 
-  @override
-  State<AmApiPage> createState() => _AmApiPageState();
-}
-
-class _AmApiPageState extends State<AmApiPage> {
-  Set<String> expandedItems = {};
-
-  void toggleExpand(String apiName) {
-    setState(() {
-      if (expandedItems.contains(apiName)) {
-        expandedItems.remove(apiName);
-      } else {
-        expandedItems.add(apiName);
-      }
-    });
-  }
-
-  List<Map<String, dynamic>> processApiData() {
-    List<Map<String, dynamic>> apiData = [];
-    
-    try {
-      final apiAnalysis = widget.analysisData['api_analysis'];
-      print('Raw API Analysis Data: $apiAnalysis'); // Debug print untuk raw data
-
-      if (apiAnalysis != null && apiAnalysis is Map) {
-        apiAnalysis.forEach((category, apis) {
-          print('Processing category: $category'); // Debug print untuk kategori
-          print('Category data: $apis'); // Debug print untuk data kategori
-
-          if (apis is Map) {
-            apis.forEach((apiName, details) {
-              print('Processing API: $apiName'); // Debug print untuk nama API
-              print('API details: $details'); // Debug print untuk detail API
-
-              List<String> files = [];
-              if (details is Map) {
-                var filesList = details['files'];
-                print('Files data for $apiName: $filesList'); // Debug print untuk data files
-
-                if (filesList is List) {
-                  files = filesList.map((e) => e.toString()).toList();
-                } else if (filesList is String) {
-                  files = [filesList];
-                }
-              }
-
-              print('Extracted files for $apiName: $files'); // Debug print untuk files yang diekstrak
-
-              apiData.add({
-                'name': '$category - $apiName',
-                'files': files,
-              });
-            });
-          }
-        });
-      }
-    } catch (e, stackTrace) {
-      print('Error processing API data: $e');
-      print('Stack trace: $stackTrace');
+  List<String> getApiNames() {
+    final apiAnalysis = analysisData['api_analysis'];
+    final List<String> apiNames = [];
+    if (apiAnalysis != null && apiAnalysis is Map) {
+      apiAnalysis.forEach((category, apis) {
+        if (apis is Map) {
+          apis.forEach((apiName, details) {
+            apiNames.add('$category - $apiName');
+          });
+        }
+      });
     }
-
-    print('Final processed API data: $apiData'); // Debug print untuk data final
-    return apiData;
+    return apiNames;
   }
 
   @override
   Widget build(BuildContext context) {
-    Color textColor = widget.isDarkMode ? Colors.white : Colors.black;
-    final apiData = processApiData();
-
+    Color textColor = isDarkMode ? Colors.white : Colors.black;
+    Color rowColor = isDarkMode ? Colors.grey[800]! : Colors.grey[100]!;
+    Color cardColor = isDarkMode ? Colors.grey[900]! : Colors.white;
+    final apiNames = getApiNames();
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'ANDROID API',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (apiData.isEmpty)
-            Text(
-              'No API calls found',
-              style: TextStyle(color: textColor, fontStyle: FontStyle.italic),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: apiData.length,
-              itemBuilder: (context, index) {
-                final item = apiData[index];
-                final String apiName = item['name'] as String;
-                final List<String> files = List<String>.from(item['files'] ?? []);
-                final bool isExpanded = expandedItems.contains(apiName);
-
-                return Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
+      child: Card(
+        color: cardColor,
+        elevation: isDarkMode ? 0 : 1,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ANDROID API',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (apiNames.isEmpty)
+                Text(
+                  'No API calls found',
+                  style: TextStyle(color: textColor, fontStyle: FontStyle.italic),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: apiNames.length,
+                  itemBuilder: (context, index) {
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                       decoration: BoxDecoration(
-                        color: index.isEven ? (widget.isDarkMode ? Colors.grey[900] : Colors.grey[100]) : null,
+                        color: index.isEven ? rowColor : null,
                         border: Border(
                           bottom: BorderSide(
-                            color: widget.isDarkMode ? Colors.grey[800]! : Colors.grey[300]!,
+                            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
                           ),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              apiName,
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              print('Tapped on API: $apiName'); // Debug print untuk tap
-                              print('Current files: $files'); // Debug print untuk files saat tap
-                              toggleExpand(apiName);
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: files.isNotEmpty ? Colors.blue : Colors.grey,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    isExpanded ? Icons.folder_open : Icons.folder,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    isExpanded ? 'Hide Files' : 'Show Files',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (isExpanded && files.isNotEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                        color: widget.isDarkMode ? Colors.grey[900] : Colors.grey[100],
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: files.map((file) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.file_present,
-                                  size: 16,
-                                  color: textColor,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    file,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: textColor,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )).toList(),
+                      child: Text(
+                        apiNames[index],
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 14,
                         ),
                       ),
-                  ],
-                );
-              },
-            ),
-        ],
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1583,8 +1448,9 @@ class MalwarePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color textColor = isDarkMode ? Colors.white : Colors.black;
-    
+    Color cardColor = isDarkMode ? Colors.grey[900]! : Colors.white;
     final malwareData = analysisData['malware_analysis'] ?? {};
+    final lookupLinks = malwareData['lookup_links'] ?? {};
     final detections = malwareData['detections'] as List? ?? [];
     final overallRisk = malwareData['risk_level'] ?? 'unknown';
     
@@ -1594,38 +1460,66 @@ class MalwarePage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Card(
+            color: cardColor,
+            elevation: isDarkMode ? 0 : 1,
+            margin: const EdgeInsets.only(bottom: 20),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                      Text(
-                    'Hasil Analisis Malware',
-                        style: TextStyle(
-                      fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.search, color: textColor),
+                      const SizedBox(width: 8),
+                      Text('Malware Lookup', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  _buildRiskLevel(overallRisk),
-                  if (malwareData['score'] != null) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      'Skor Keamanan: ${malwareData['score']}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: textColor,
-                      ),
-                    ),
-                  ],
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 16,
+                    children: [
+                      _buildLookupLink('VirusTotal Report', lookupLinks['virustotal'], Icons.remove_red_eye, textColor),
+                      _buildLookupLink('Triage Report', lookupLinks['triage'], Icons.remove_red_eye, textColor),
+                      _buildLookupLink('MetaDefender Report', lookupLinks['metadefender'], Icons.remove_red_eye, textColor),
+                      _buildLookupLink('Hybrid Analysis Report', lookupLinks['hybrid'], Icons.remove_red_eye, textColor),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
+          // === MALWARE SUMMARY (RISK/SCORE) ===
+          if (malwareData['risk_level'] != null) ...[
+            Card(
+              margin: const EdgeInsets.only(bottom: 20),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(Icons.shield, color: textColor),
+                    const SizedBox(width: 8),
+                    Text('Risk: ', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _riskColor(malwareData['risk_level']),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        malwareData['risk_level'].toString().toUpperCase(),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (detections.isNotEmpty) ...[
             const SizedBox(height: 24),
-                  Text(
+            Text(
               'Deteksi Malware (${detections.length})',
               style: TextStyle(
                 fontSize: 20,
@@ -1650,7 +1544,7 @@ class MalwarePage extends StatelessWidget {
                     ),
                     if (detection['description'] != null) ...[
                       const SizedBox(height: 8),
-          Text(
+                      Text(
                         detection['description'],
                         style: TextStyle(
                           color: textColor.withOpacity(0.8),
@@ -1661,58 +1555,137 @@ class MalwarePage extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(
                         'Tingkat Keparahan: ${detection['severity']}',
-              style: TextStyle(
+                        style: TextStyle(
                           color: _getSeverityColor(detection['severity']),
                           fontWeight: FontWeight.bold,
-              ),
-            ),
+                        ),
+                      ),
                     ],
                   ],
-          ),
+                ),
               ),
             )).toList(),
           ],
+          // === APKID ANALYSIS ===
+          Card(
+            margin: const EdgeInsets.only(bottom: 20),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.memory, color: textColor),
+                      const SizedBox(width: 8),
+                      Text('APKID Analysis', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildApkidTable(analysisData['malware_analysis']?['apkid'], textColor),
+                ],
+              ),
+            ),
+          ),
+          // === BEHAVIOUR ANALYSIS ===
+          Card(
+            margin: const EdgeInsets.only(bottom: 20),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.analytics, color: textColor),
+                      const SizedBox(width: 8),
+                      Text('Behaviour Analysis', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildBehaviourTable(analysisData['malware_analysis']?['behaviour'], textColor),
+                ],
+              ),
+            ),
+          ),
+          // === ABUSED PERMISSIONS ===
+          Card(
+            margin: const EdgeInsets.only(bottom: 20),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.lock, color: textColor),
+                      const SizedBox(width: 8),
+                      Text('Abused Permissions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildAbusedPermissions(analysisData['malware_analysis']?['abused_permissions'], textColor),
+                ],
+              ),
+            ),
+          ),
+          // === SERVER LOCATION & DOMAIN MALWARE CHECK ===
+          Card(
+            margin: const EdgeInsets.only(bottom: 20),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.public, color: textColor),
+                      const SizedBox(width: 8),
+                      Text('Server Locations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildServerLocationTable(analysisData['malware_analysis']?['server_locations'], textColor),
+                ],
+              ),
+            ),
+          ),
+          Card(
+            margin: const EdgeInsets.only(bottom: 20),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.dns, color: textColor),
+                      const SizedBox(width: 8),
+                      Text('Domain Malware Check', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDomainTable(analysisData['malware_analysis']?['server_locations'], textColor),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildRiskLevel(String riskLevel) {
-    Color riskColor;
-    String riskText;
-    
-    switch (riskLevel.toLowerCase()) {
+  Color _riskColor(dynamic risk) {
+    switch ((risk ?? '').toString().toLowerCase()) {
       case 'high':
-        riskColor = Colors.red;
-        riskText = 'Risiko Tinggi';
-        break;
+        return Colors.red;
       case 'medium':
-        riskColor = Colors.orange;
-        riskText = 'Risiko Menengah';
-        break;
+        return Colors.orange;
       case 'low':
-        riskColor = Colors.green;
-        riskText = 'Risiko Rendah';
-        break;
+        return Colors.green;
       default:
-        riskColor = Colors.grey;
-        riskText = 'Risiko Tidak Diketahui';
+        return Colors.grey;
     }
-
-    return Row(
-      children: [
-        Icon(Icons.security, color: riskColor, size: 24),
-        const SizedBox(width: 8),
-        Text(
-          riskText,
-        style: TextStyle(
-            color: riskColor,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
   }
 
   Color _getSeverityColor(String severity) {
@@ -1728,6 +1701,222 @@ class MalwarePage extends StatelessWidget {
       default:
         return Colors.grey;
     }
+  }
+
+  Widget _buildLookupLink(String label, String? url, IconData icon, Color textColor) {
+    if (url == null || url.isEmpty) {
+      return Opacity(
+        opacity: 0.5,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: textColor),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(color: textColor, decoration: TextDecoration.lineThrough)),
+          ],
+        ),
+      );
+    }
+    return InkWell(
+      onTap: () async {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
+        }
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: textColor),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(color: textColor, decoration: TextDecoration.underline)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApkidTable(dynamic apkidData, Color textColor) {
+    if (apkidData == null || (apkidData is List && apkidData.isEmpty)) {
+      return Text('No APKID analysis found', style: TextStyle(color: textColor, fontStyle: FontStyle.italic));
+    }
+    final List apkidList = apkidData as List;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columns: [
+          DataColumn(label: Text('DEX', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
+          DataColumn(label: Text('Findings', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
+          DataColumn(label: Text('Details', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
+        ],
+        rows: apkidList.map<DataRow>((row) {
+          final findings = row['findings'] as List? ?? [];
+          return DataRow(cells: [
+            DataCell(Text(row['dex'] ?? '', style: TextStyle(color: textColor))),
+            DataCell(Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: findings.map<Widget>((f) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[200],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(f['label'] ?? '', style: TextStyle(color: Colors.black, fontSize: 12)),
+                );
+              }).toList(),
+            )),
+            DataCell(Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: findings.expand<Widget>((f) {
+                final details = f['details'] as List? ?? [];
+                return details.map<Widget>((d) => Text(d, style: TextStyle(color: textColor, fontSize: 12))).toList();
+              }).toList(),
+            )),
+          ]);
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildBehaviourTable(dynamic behaviourData, Color textColor) {
+    if (behaviourData == null || (behaviourData is List && behaviourData.isEmpty)) {
+      return Text('No behaviour analysis found', style: TextStyle(color: textColor, fontStyle: FontStyle.italic));
+    }
+    final List behaviourList = behaviourData as List;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columns: [
+          DataColumn(label: Text('Rule ID', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
+          DataColumn(label: Text('Behaviour', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
+          DataColumn(label: Text('Label', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
+          DataColumn(label: Text('Files', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
+        ],
+        rows: behaviourList.map<DataRow>((row) {
+          final labels = row['label'] as List? ?? [];
+          final files = row['files'] as List? ?? [];
+          return DataRow(cells: [
+            DataCell(Text(row['rule_id'] ?? '', style: TextStyle(color: textColor))),
+            DataCell(Text(row['behaviour'] ?? '', style: TextStyle(color: textColor))),
+            DataCell(Wrap(
+              spacing: 4,
+              children: labels.map<Widget>((l) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                margin: const EdgeInsets.only(bottom: 2),
+                decoration: BoxDecoration(
+                  color: Colors.amber[200],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(l, style: const TextStyle(color: Colors.black, fontSize: 12)),
+              )).toList(),
+            )),
+            DataCell(Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: files.map<Widget>((f) => Text(f, style: TextStyle(color: textColor, fontSize: 12))).toList(),
+            )),
+          ]);
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildAbusedPermissions(dynamic abusedData, Color textColor) {
+    if (abusedData == null || abusedData is! Map || (abusedData['malware'] == null && abusedData['common'] == null)) {
+      return Text('No abused permissions found', style: TextStyle(color: textColor, fontStyle: FontStyle.italic));
+    }
+    final List malware = abusedData['malware'] as List? ?? [];
+    final List common = abusedData['common'] as List? ?? [];
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Top Malware Permissions', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+              const SizedBox(height: 8),
+              ...malware.map<Widget>((p) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Text(p, style: TextStyle(color: textColor, fontSize: 13)),
+              )),
+            ],
+          ),
+        ),
+        const SizedBox(width: 32),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Other Common Permissions', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+              const SizedBox(height: 8),
+              ...common.map<Widget>((p) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Text(p, style: TextStyle(color: textColor, fontSize: 13)),
+              )),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildServerLocationTable(dynamic serverData, Color textColor) {
+    if (serverData == null || (serverData is List && serverData.isEmpty)) {
+      return Text('No server location found', style: TextStyle(color: textColor, fontStyle: FontStyle.italic));
+    }
+    final List serverList = serverData as List;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: serverList.map<Widget>((row) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Icon(Icons.location_on, color: Colors.red[300], size: 18),
+              const SizedBox(width: 6),
+              Text(row['country'] ?? '', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+              if (row['region'] != null) ...[
+                Text(' / ${row['region']}', style: TextStyle(color: textColor)),
+              ],
+              if (row['city'] != null) ...[
+                Text(' / ${row['city']}', style: TextStyle(color: textColor)),
+              ],
+              if (row['ip'] != null) ...[
+                Text('  (IP: ${row['ip']})', style: TextStyle(color: textColor, fontSize: 12)),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildDomainTable(dynamic serverData, Color textColor) {
+    if (serverData == null || (serverData is List && serverData.isEmpty)) {
+      return Text('No domain found', style: TextStyle(color: textColor, fontStyle: FontStyle.italic));
+    }
+    final List serverList = serverData as List;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columns: [
+          DataColumn(label: Text('Domain', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
+          DataColumn(label: Text('IP', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
+          DataColumn(label: Text('Country/Region/City', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
+        ],
+        rows: serverList.map<DataRow>((row) {
+          return DataRow(cells: [
+            DataCell(Text(row['domain'] ?? '', style: TextStyle(color: textColor))),
+            DataCell(Text(row['ip'] ?? '', style: TextStyle(color: textColor))),
+            DataCell(Text(
+              '${row['country'] ?? ''}${row['region'] != null ? ', ' + row['region'] : ''}${row['city'] != null ? ', ' + row['city'] : ''}',
+              style: TextStyle(color: textColor),
+            )),
+          ]);
+        }).toList(),
+      ),
+    );
   }
 }
 
@@ -1822,7 +2011,7 @@ class AboutPage extends StatelessWidget {
       drawer: AppDrawer(currentPage: 'about', isDarkMode: isDarkMode, toggleTheme: toggleTheme),
       appBar: AppBar(
         title: Text('About'),
-        backgroundColor: isDarkMode ? Colors.teal : Colors.green,
+        backgroundColor: isDarkMode ? const Color.fromARGB(255, 168, 186, 185) : Colors.green,
         actions: [
           IconButton(
             icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),

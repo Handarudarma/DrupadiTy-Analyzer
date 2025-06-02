@@ -41,6 +41,7 @@ dependencies:
   firebase_auth: ^4.17.9
   google_sign_in: ^6.2.1
   js: ^0.6.7 # or latest
+  html: ^0.15.4
 
   http: ^1.1.0
   file_picker: ^6.1.1
@@ -77,6 +78,7 @@ flutter:
 
   assets:
     - assets/images/logo.jpg
+    - assets/images/logo.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

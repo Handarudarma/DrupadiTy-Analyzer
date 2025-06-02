@@ -16,7 +16,6 @@ import 'package:xml/xml.dart';
 import 'models/permission_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:html' if (dart.library.io) 'dart:io' as html;
 import 'package:open_filex/open_filex.dart';
 
 
@@ -827,25 +826,28 @@ class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateM
       final bytes = pdfResp.bodyBytes;
       
       if (kIsWeb) {
-        // Web platform download implementation
-        final blob = html.Blob([bytes]);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute('download', '${widget.analysisData['file_name']}_report.pdf')
-          ..click();
-        html.Url.revokeObjectUrl(url);
+        // For web platform, we'll use a different approach
+        // This feature is not supported in web version
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Download PDF tidak tersedia di versi web')),
+        );
       } else {
         // Mobile platform download implementation
         final directory = await getApplicationDocumentsDirectory();
         final file = File('${directory.path}/${widget.analysisData['file_name']}_report.pdf');
         await file.writeAsBytes(bytes);
-        await OpenFilex.open(file.path);
+        
+        final result = await OpenFilex.open(file.path);
+        if (result.type != ResultType.done) {
+          throw Exception('Gagal membuka file PDF');
+        }
       }
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Laporan PDF berhasil diunduh')),
       );
     } catch (e) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal mengunduh laporan PDF: $e')),
       );

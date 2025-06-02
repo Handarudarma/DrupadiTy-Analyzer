@@ -15,6 +15,9 @@ import 'package:flutter_archive/flutter_archive.dart';
 import 'package:xml/xml.dart';
 import 'models/permission_model.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' if (dart.library.io) 'dart:io' as html;
+import 'package:open_filex/open_filex.dart';
 
 
 void main() async {
@@ -27,11 +30,20 @@ void main() async {
 
 class SecurityAnalyzeApp extends StatefulWidget {
   const SecurityAnalyzeApp({super.key});
+  
   @override
   SecurityAnalyzeAppState createState() => SecurityAnalyzeAppState();
 }
 
 class SecurityAnalyzeAppState extends State<SecurityAnalyzeApp> {
+  static final SecurityAnalyzeAppState _instance = SecurityAnalyzeAppState._internal();
+  
+  factory SecurityAnalyzeAppState() {
+    return _instance;
+  }
+  
+  SecurityAnalyzeAppState._internal();
+  
   bool isDarkMode = true;
 
   void toggleTheme() {
@@ -51,19 +63,18 @@ class SecurityAnalyzeAppState extends State<SecurityAnalyzeApp> {
               scaffoldBackgroundColor: Colors.black,
             )
           : ThemeData.light().copyWith(
-              primaryColor: Colors.green,
+              primaryColor: Colors.teal,
               scaffoldBackgroundColor: Colors.white,
             ),
       initialRoute: '/',
       routes: {
-        '/': (context) => SplashScreen(toggleTheme: toggleTheme, isDarkMode: isDarkMode), // ⬅️ Splash screen di sini
+        '/': (context) => SplashScreen(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
         '/home': (context) => HomePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
         '/profile': (context) => ProfilePage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
         '/setting': (context) => SettingPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
         '/about': (context) => AboutPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
-        '/history': (context) => HistoryPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
       },
     );
   }
@@ -102,21 +113,12 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFA8FF9A),
+      backgroundColor: Colors.teal,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset('assets/images/logo.jpg', height: 150),
-            const SizedBox(height: 20),
-            const Text(
-              'DrupadiTy',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.indigo,
-              ),
-            ),
+            Image.asset('assets/images/logo.png', height: 150),
           ],
         ),
       ),
@@ -180,14 +182,41 @@ class AppDrawer extends StatelessWidget {
           children: [
             DrawerHeader(
               decoration: const BoxDecoration(color: Colors.teal),
+              padding: const EdgeInsets.all(16),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const CircleAvatar(radius: 24, child: Icon(Icons.person)),
-                  const SizedBox(height: 8),
+                  const CircleAvatar(
+                    radius: 35,
+                    backgroundColor: Colors.white,
+                    child: Icon(
+                      Icons.person,
+                      size: 35,
+                      color: Colors.teal,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   Text(
                     FirebaseAuth.instance.currentUser?.displayName ?? 'Guest User',
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  if (FirebaseAuth.instance.currentUser?.email != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      FirebaseAuth.instance.currentUser!.email!,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 13,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -197,14 +226,6 @@ class AppDrawer extends StatelessWidget {
               selected: currentPage == 'home',
               onTap: () {
                 Navigator.pushReplacementNamed(context, '/home');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.history, color: iconColor),
-              title: Text('History', style: TextStyle(color: textColor)),
-              selected: currentPage == 'history',
-              onTap: () {
-                Navigator.pushReplacementNamed(context, '/history');
               },
             ),
             ListTile(
@@ -533,7 +554,8 @@ Future<Uint8List?> extractAppIcon(Uint8List apkBytes, String fileName) async {
   }
 }
 
-Future<void> uploadAndAnalyzeApk(BuildContext context, VoidCallback toggleTheme, bool isDarkMode) async {
+Future<void> uploadAndAnalyzeApk(BuildContext context) async {
+  final state = SecurityAnalyzeAppState();
   const apiKey = '55ab018480512272a0ef9eb7d471fde09422e956c4e646bdc456ccc25c9f86d2';
   const baseUrl = 'http://145.79.12.167:8000';
 
@@ -609,13 +631,6 @@ Future<void> uploadAndAnalyzeApk(BuildContext context, VoidCallback toggleTheme,
     final scanData = jsonDecode(scanResp.body);
     final jsonData = jsonDecode(jsonResp.body);
 
-    // Debug print untuk melihat struktur data API
-    print('=== API Response Structure ===');
-    print('Scan Data Keys: ${scanData.keys.toList()}');
-    print('JSON Data Keys: ${jsonData.keys.toList()}');
-    print('API Analysis Data: ${jsonData['android_api']}');
-    print('============================');
-
     // Combine data from scan and detailed JSON report
     final Map<String, dynamic> analysisData = {
       ...Map<String, dynamic>.from(scanData),
@@ -627,13 +642,14 @@ Future<void> uploadAndAnalyzeApk(BuildContext context, VoidCallback toggleTheme,
       'app_name': jsonData['app_name'] ?? fileName.split('.').first,
       'permissions': jsonData['permissions'] ?? [],
       'certificate_analysis': jsonData['certificate_analysis'] ?? {},
-      'api_analysis': jsonData['android_api'] ?? {}, // Menggunakan key yang benar untuk API analysis
+      'api_analysis': jsonData['android_api'] ?? {},
       'malware_analysis': {
         'result': jsonData['malware_analysis']?['result'] ?? 'unknown',
         'score': jsonData['average_cvss'] ?? 0,
         'detections': jsonData['malware_analysis']?['findings'] ?? [],
       },
       'app_icon': iconBytes,
+      'hash': apkHash,
     };
 
     if (!context.mounted) return;
@@ -642,8 +658,8 @@ Future<void> uploadAndAnalyzeApk(BuildContext context, VoidCallback toggleTheme,
       context,
       MaterialPageRoute(
         builder: (context) => ResultPage(
-          toggleTheme: toggleTheme,
-          isDarkMode: isDarkMode,
+          toggleTheme: state.toggleTheme,
+          isDarkMode: state.isDarkMode,
           analysisData: analysisData,
         ),
       ),
@@ -652,7 +668,7 @@ Future<void> uploadAndAnalyzeApk(BuildContext context, VoidCallback toggleTheme,
   } catch (e) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: ${e.toString()}'))
+      SnackBar(content: Text('Gagal analisis APK: $e')),
     );
   }
 }
@@ -668,13 +684,13 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color textColor = isDarkMode ? Colors.white : Colors.black;
-    Color iconColor = isDarkMode ? Colors.greenAccent : Colors.green;
+    Color iconColor = Colors.teal;
 
     return Scaffold(
       drawer: AppDrawer(currentPage: 'home', isDarkMode: isDarkMode, toggleTheme: toggleTheme),
       appBar: AppBar(
-        title: Text('Home'),
-        backgroundColor: isDarkMode ? Colors.teal : Colors.green,
+        title: const Text('Home'),
+        backgroundColor: Colors.teal,
         actions: [
           IconButton(
             icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
@@ -687,30 +703,28 @@ class HomePage extends StatelessWidget {
           Expanded(
             child: Center(
               child: Column(
-                mainAxisSize: MainAxisSize.min, // biar konten gak memenuhi penuh
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.android, size: 100, color: iconColor),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   Text('Only APK', style: TextStyle(color: textColor, fontSize: 24)),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   ElevatedButton.icon(
-                    icon: Icon(Icons.upload_file),
-                    label: Text('Upload & Analyze'),
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Upload & Analyze'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isDarkMode ? Colors.white : Colors.black,
                       foregroundColor: isDarkMode ? Colors.black : Colors.white,
-                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
-                    onPressed: () {
-                      uploadAndAnalyzeApk(context, toggleTheme, isDarkMode);
-                    },
+                    onPressed: () => uploadAndAnalyzeApk(context),
                   ),
                 ],
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 20),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 20),
             child: Text(
               '@Security Analyze By Drupadity',
               style: TextStyle(color: Colors.grey, fontSize: 12),
@@ -728,7 +742,12 @@ class ResultPage extends StatefulWidget {
   final bool isDarkMode;
   final Map<String, dynamic> analysisData;
 
-  const ResultPage({super.key, required this.toggleTheme, required this.isDarkMode, required this.analysisData});
+  const ResultPage({
+    super.key, 
+    required this.toggleTheme, 
+    required this.isDarkMode,
+    required this.analysisData,
+  });
 
   @override
   State<ResultPage> createState() => _ResultPageState();
@@ -736,13 +755,13 @@ class ResultPage extends StatefulWidget {
 
 class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final state = SecurityAnalyzeAppState();
 
   final List<Tab> myTabs = <Tab>[
     Tab(text: 'Info'),
     Tab(text: 'Signer'),
     Tab(text: 'Perm'),
     Tab(text: 'AMAPI'),
-    Tab(text: 'Malware'),
   ];
 
   @override
@@ -760,32 +779,91 @@ class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateM
   Widget buildTabContent(int index) {
     switch (index) {
       case 0:
-        return InfoPage(isDarkMode: widget.isDarkMode, analysisData: widget.analysisData);
+        return InfoPage(isDarkMode: state.isDarkMode, analysisData: widget.analysisData);
       case 1:
-        return SignerPage(isDarkMode: widget.isDarkMode, analysisData: widget.analysisData);
+        return SignerPage(isDarkMode: state.isDarkMode, analysisData: widget.analysisData);
       case 2:
-        return PermissionPage(isDarkMode: widget.isDarkMode, analysisData: widget.analysisData);
+        return PermissionPage(isDarkMode: state.isDarkMode, analysisData: widget.analysisData);
       case 3:
-        return AmApiPage(isDarkMode: widget.isDarkMode, analysisData: widget.analysisData);
-      case 4:
-        return MalwarePage(isDarkMode: widget.isDarkMode, analysisData: widget.analysisData, toggleTheme: widget.toggleTheme);
+        return AmApiPage(isDarkMode: state.isDarkMode, analysisData: widget.analysisData);
       default:
-        return Center(child: Text('Tab tidak ditemukan'));
+        return const Center(child: Text('Tab tidak ditemukan'));
+    }
+  }
+
+  Future<void> _downloadPdfReport(BuildContext context) async {
+    const apiKey = '55ab018480512272a0ef9eb7d471fde09422e956c4e646bdc456ccc25c9f86d2';
+    const baseUrl = 'http://145.79.12.167:8000';
+    
+    try {
+      final apkHash = widget.analysisData['hash'];
+      if (apkHash == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hash APK tidak ditemukan')),
+        );
+        return;
+      }
+
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mengunduh laporan PDF...')),
+      );
+
+      // Get PDF report
+      final pdfResp = await http.post(
+        Uri.parse('$baseUrl/api/v1/download_pdf'),
+        headers: {
+          'Authorization': apiKey,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'hash=$apkHash',
+      );
+
+      if (pdfResp.statusCode != 200) {
+        throw Exception('Gagal mengunduh PDF: ${pdfResp.statusCode}');
+      }
+
+      // Convert response to Uint8List
+      final bytes = pdfResp.bodyBytes;
+      
+      if (kIsWeb) {
+        // Web platform download implementation
+        final blob = html.Blob([bytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', '${widget.analysisData['file_name']}_report.pdf')
+          ..click();
+        html.Url.revokeObjectUrl(url);
+      } else {
+        // Mobile platform download implementation
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/${widget.analysisData['file_name']}_report.pdf');
+        await file.writeAsBytes(bytes);
+        await OpenFilex.open(file.path);
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Laporan PDF berhasil diunduh')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengunduh laporan PDF: $e')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    Color tabBarBg = widget.isDarkMode ? Colors.grey[900]! : Colors.grey[300]!;
-    Color indicatorColor = widget.isDarkMode ? Colors.tealAccent : Colors.green;
-    Color textColor = widget.isDarkMode ? Colors.white : Colors.black;
+    Color tabBarBg = state.isDarkMode ? Colors.grey[900]! : Colors.grey[300]!;
+    Color indicatorColor = state.isDarkMode ? Colors.tealAccent : Colors.teal;
+    Color textColor = state.isDarkMode ? Colors.white : Colors.black;
 
     return Scaffold(
-      backgroundColor: widget.isDarkMode ? Colors.black : Colors.white,
-      drawer: AppDrawer(currentPage: 'result', isDarkMode: widget.isDarkMode, toggleTheme: widget.toggleTheme),
+      backgroundColor: state.isDarkMode ? Colors.black : Colors.white,
+      drawer: AppDrawer(currentPage: 'result', isDarkMode: state.isDarkMode, toggleTheme: state.toggleTheme),
       appBar: AppBar(
         title: const Text('Analysis Results'),
-        backgroundColor: widget.isDarkMode ? Colors.teal : Colors.green,
+        backgroundColor: Colors.teal,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(kToolbarHeight),
           child: Container(
@@ -795,14 +873,18 @@ class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateM
               tabs: myTabs,
               indicatorColor: indicatorColor,
               labelColor: textColor,
-              unselectedLabelColor: widget.isDarkMode ? Colors.grey[400] : Colors.grey[700],
+              unselectedLabelColor: state.isDarkMode ? Colors.grey[400] : Colors.grey[700],
             ),
           ),
         ),
         actions: [
           IconButton(
-            icon: Icon(widget.isDarkMode ? Icons.light_mode : Icons.dark_mode),
-            onPressed: widget.toggleTheme,
+            icon: const Icon(Icons.download),
+            onPressed: () => _downloadPdfReport(context),
+          ),
+          IconButton(
+            icon: Icon(state.isDarkMode ? Icons.light_mode : Icons.dark_mode),
+            onPressed: state.toggleTheme,
           ),
         ],
       ),
@@ -1432,566 +1514,6 @@ class AmApiPage extends StatelessWidget {
   }
 }
 
-// halaman Malware
-class MalwarePage extends StatelessWidget {
-  final bool isDarkMode;
-  final Map<String, dynamic> analysisData;
-  final VoidCallback toggleTheme;
-
-  const MalwarePage({
-    super.key, 
-    required this.isDarkMode, 
-    required this.analysisData,
-    required this.toggleTheme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    Color textColor = isDarkMode ? Colors.white : Colors.black;
-    Color cardColor = isDarkMode ? Colors.grey[900]! : Colors.white;
-    final malwareData = analysisData['malware_analysis'] ?? {};
-    final lookupLinks = malwareData['lookup_links'] ?? {};
-    final detections = malwareData['detections'] as List? ?? [];
-    final overallRisk = malwareData['risk_level'] ?? 'unknown';
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Card(
-            color: cardColor,
-            elevation: isDarkMode ? 0 : 1,
-            margin: const EdgeInsets.only(bottom: 20),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.search, color: textColor),
-                      const SizedBox(width: 8),
-                      Text('Malware Lookup', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 16,
-                    children: [
-                      _buildLookupLink('VirusTotal Report', lookupLinks['virustotal'], Icons.remove_red_eye, textColor),
-                      _buildLookupLink('Triage Report', lookupLinks['triage'], Icons.remove_red_eye, textColor),
-                      _buildLookupLink('MetaDefender Report', lookupLinks['metadefender'], Icons.remove_red_eye, textColor),
-                      _buildLookupLink('Hybrid Analysis Report', lookupLinks['hybrid'], Icons.remove_red_eye, textColor),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // === MALWARE SUMMARY (RISK/SCORE) ===
-          if (malwareData['risk_level'] != null) ...[
-            Card(
-              margin: const EdgeInsets.only(bottom: 20),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(Icons.shield, color: textColor),
-                    const SizedBox(width: 8),
-                    Text('Risk: ', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _riskColor(malwareData['risk_level']),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        malwareData['risk_level'].toString().toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          if (detections.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            Text(
-              'Deteksi Malware (${detections.length})',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ...detections.map((detection) => Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      detection['name'] ?? 'Unknown Malware',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                    if (detection['description'] != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        detection['description'],
-                        style: TextStyle(
-                          color: textColor.withOpacity(0.8),
-                        ),
-                      ),
-                    ],
-                    if (detection['severity'] != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Tingkat Keparahan: ${detection['severity']}',
-                        style: TextStyle(
-                          color: _getSeverityColor(detection['severity']),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            )).toList(),
-          ],
-          // === APKID ANALYSIS ===
-          Card(
-            margin: const EdgeInsets.only(bottom: 20),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.memory, color: textColor),
-                      const SizedBox(width: 8),
-                      Text('APKID Analysis', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildApkidTable(analysisData['malware_analysis']?['apkid'], textColor),
-                ],
-              ),
-            ),
-          ),
-          // === BEHAVIOUR ANALYSIS ===
-          Card(
-            margin: const EdgeInsets.only(bottom: 20),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.analytics, color: textColor),
-                      const SizedBox(width: 8),
-                      Text('Behaviour Analysis', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildBehaviourTable(analysisData['malware_analysis']?['behaviour'], textColor),
-                ],
-              ),
-            ),
-          ),
-          // === ABUSED PERMISSIONS ===
-          Card(
-            margin: const EdgeInsets.only(bottom: 20),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.lock, color: textColor),
-                      const SizedBox(width: 8),
-                      Text('Abused Permissions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildAbusedPermissions(analysisData['malware_analysis']?['abused_permissions'], textColor),
-                ],
-              ),
-            ),
-          ),
-          // === SERVER LOCATION & DOMAIN MALWARE CHECK ===
-          Card(
-            margin: const EdgeInsets.only(bottom: 20),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.public, color: textColor),
-                      const SizedBox(width: 8),
-                      Text('Server Locations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildServerLocationTable(analysisData['malware_analysis']?['server_locations'], textColor),
-                ],
-              ),
-            ),
-          ),
-          Card(
-            margin: const EdgeInsets.only(bottom: 20),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.dns, color: textColor),
-                      const SizedBox(width: 8),
-                      Text('Domain Malware Check', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDomainTable(analysisData['malware_analysis']?['server_locations'], textColor),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Color _riskColor(dynamic risk) {
-    switch ((risk ?? '').toString().toLowerCase()) {
-      case 'high':
-        return Colors.red;
-      case 'medium':
-        return Colors.orange;
-      case 'low':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Color _getSeverityColor(String severity) {
-    switch (severity.toLowerCase()) {
-      case 'critical':
-        return Colors.red[900]!;
-      case 'high':
-        return Colors.red;
-      case 'medium':
-        return Colors.orange;
-      case 'low':
-        return Colors.yellow[700]!;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Widget _buildLookupLink(String label, String? url, IconData icon, Color textColor) {
-    if (url == null || url.isEmpty) {
-      return Opacity(
-        opacity: 0.5,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: textColor),
-            const SizedBox(width: 4),
-            Text(label, style: TextStyle(color: textColor, decoration: TextDecoration.lineThrough)),
-          ],
-        ),
-      );
-    }
-    return InkWell(
-      onTap: () async {
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri);
-        }
-      },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: textColor),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: textColor, decoration: TextDecoration.underline)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildApkidTable(dynamic apkidData, Color textColor) {
-    if (apkidData == null || (apkidData is List && apkidData.isEmpty)) {
-      return Text('No APKID analysis found', style: TextStyle(color: textColor, fontStyle: FontStyle.italic));
-    }
-    final List apkidList = apkidData as List;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: [
-          DataColumn(label: Text('DEX', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Findings', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Details', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-        ],
-        rows: apkidList.map<DataRow>((row) {
-          final findings = row['findings'] as List? ?? [];
-          return DataRow(cells: [
-            DataCell(Text(row['dex'] ?? '', style: TextStyle(color: textColor))),
-            DataCell(Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: findings.map<Widget>((f) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.amber[200],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(f['label'] ?? '', style: TextStyle(color: Colors.black, fontSize: 12)),
-                );
-              }).toList(),
-            )),
-            DataCell(Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: findings.expand<Widget>((f) {
-                final details = f['details'] as List? ?? [];
-                return details.map<Widget>((d) => Text(d, style: TextStyle(color: textColor, fontSize: 12))).toList();
-              }).toList(),
-            )),
-          ]);
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildBehaviourTable(dynamic behaviourData, Color textColor) {
-    if (behaviourData == null || (behaviourData is List && behaviourData.isEmpty)) {
-      return Text('No behaviour analysis found', style: TextStyle(color: textColor, fontStyle: FontStyle.italic));
-    }
-    final List behaviourList = behaviourData as List;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: [
-          DataColumn(label: Text('Rule ID', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Behaviour', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Label', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Files', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-        ],
-        rows: behaviourList.map<DataRow>((row) {
-          final labels = row['label'] as List? ?? [];
-          final files = row['files'] as List? ?? [];
-          return DataRow(cells: [
-            DataCell(Text(row['rule_id'] ?? '', style: TextStyle(color: textColor))),
-            DataCell(Text(row['behaviour'] ?? '', style: TextStyle(color: textColor))),
-            DataCell(Wrap(
-              spacing: 4,
-              children: labels.map<Widget>((l) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                margin: const EdgeInsets.only(bottom: 2),
-                decoration: BoxDecoration(
-                  color: Colors.amber[200],
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(l, style: const TextStyle(color: Colors.black, fontSize: 12)),
-              )).toList(),
-            )),
-            DataCell(Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: files.map<Widget>((f) => Text(f, style: TextStyle(color: textColor, fontSize: 12))).toList(),
-            )),
-          ]);
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildAbusedPermissions(dynamic abusedData, Color textColor) {
-    if (abusedData == null || abusedData is! Map || (abusedData['malware'] == null && abusedData['common'] == null)) {
-      return Text('No abused permissions found', style: TextStyle(color: textColor, fontStyle: FontStyle.italic));
-    }
-    final List malware = abusedData['malware'] as List? ?? [];
-    final List common = abusedData['common'] as List? ?? [];
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Top Malware Permissions', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
-              const SizedBox(height: 8),
-              ...malware.map<Widget>((p) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Text(p, style: TextStyle(color: textColor, fontSize: 13)),
-              )),
-            ],
-          ),
-        ),
-        const SizedBox(width: 32),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Other Common Permissions', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
-              const SizedBox(height: 8),
-              ...common.map<Widget>((p) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Text(p, style: TextStyle(color: textColor, fontSize: 13)),
-              )),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildServerLocationTable(dynamic serverData, Color textColor) {
-    if (serverData == null || (serverData is List && serverData.isEmpty)) {
-      return Text('No server location found', style: TextStyle(color: textColor, fontStyle: FontStyle.italic));
-    }
-    final List serverList = serverData as List;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: serverList.map<Widget>((row) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            children: [
-              Icon(Icons.location_on, color: Colors.red[300], size: 18),
-              const SizedBox(width: 6),
-              Text(row['country'] ?? '', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-              if (row['region'] != null) ...[
-                Text(' / ${row['region']}', style: TextStyle(color: textColor)),
-              ],
-              if (row['city'] != null) ...[
-                Text(' / ${row['city']}', style: TextStyle(color: textColor)),
-              ],
-              if (row['ip'] != null) ...[
-                Text('  (IP: ${row['ip']})', style: TextStyle(color: textColor, fontSize: 12)),
-              ],
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildDomainTable(dynamic serverData, Color textColor) {
-    if (serverData == null || (serverData is List && serverData.isEmpty)) {
-      return Text('No domain found', style: TextStyle(color: textColor, fontStyle: FontStyle.italic));
-    }
-    final List serverList = serverData as List;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: [
-          DataColumn(label: Text('Domain', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('IP', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Country/Region/City', style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
-        ],
-        rows: serverList.map<DataRow>((row) {
-          return DataRow(cells: [
-            DataCell(Text(row['domain'] ?? '', style: TextStyle(color: textColor))),
-            DataCell(Text(row['ip'] ?? '', style: TextStyle(color: textColor))),
-            DataCell(Text(
-              '${row['country'] ?? ''}${row['region'] != null ? ', ' + row['region'] : ''}${row['city'] != null ? ', ' + row['city'] : ''}',
-              style: TextStyle(color: textColor),
-            )),
-          ]);
-        }).toList(),
-      ),
-    );
-  }
-}
-
-// Halaman History
-class HistoryPage extends StatelessWidget {
-  final VoidCallback toggleTheme;
-  final bool isDarkMode;
-
-  const HistoryPage({
-    super.key,
-    required this.toggleTheme, 
-    required this.isDarkMode,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    Color textColor = isDarkMode ? Colors.white : Colors.black;
-    Color bgColor = isDarkMode ? Colors.black : Colors.white;
-
-    //  data history
-    List<Map<String, String>> historyList = [
-      {"name": "App 0", "date": "24 Apr 2025"},
-      {"name": "App 1", "date": "24 Apr 2025"},
-      {"name": "App 2", "date": "24 Apr 2025"},
-    ];
-
-    return Scaffold(
-      drawer: AppDrawer(currentPage: 'history', isDarkMode: isDarkMode, toggleTheme: toggleTheme),
-      appBar: AppBar(
-        title: Text('History'),
-        backgroundColor: isDarkMode ? Colors.teal : Colors.green,
-        actions: [
-          IconButton(
-            icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
-            onPressed: toggleTheme,
-          ),
-        ],
-      ),
-      backgroundColor: bgColor,
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount: historyList.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(
-                    historyList[index]["name"]!,
-                    style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    'Analyzed on ${historyList[index]["date"]!}',
-                    style: TextStyle(color: textColor.withAlpha(179)), // 0.7 * 255 ≈ 179
-                  ),
-                  trailing: Icon(Icons.arrow_forward_ios, color: textColor, size: 18),
-                  onTap: () {
-                    // Tambahkan aksi jika ingin menampilkan detail
-                  },
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 20),
-            child: Text(
-              '@Security Analyze By Drupadity',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // About Page
 class AboutPage extends StatelessWidget {
   final VoidCallback toggleTheme;
@@ -2010,8 +1532,8 @@ class AboutPage extends StatelessWidget {
     return Scaffold(
       drawer: AppDrawer(currentPage: 'about', isDarkMode: isDarkMode, toggleTheme: toggleTheme),
       appBar: AppBar(
-        title: Text('About'),
-        backgroundColor: isDarkMode ? const Color.fromARGB(255, 168, 186, 185) : Colors.green,
+        title: const Text('About'),
+        backgroundColor: Colors.teal,
         actions: [
           IconButton(
             icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
@@ -2054,7 +1576,7 @@ class AboutPage extends StatelessWidget {
                   const SizedBox(height: 10),
                   Text('1. Handaru Darma Putra (222104004)', style: TextStyle(color: textColor)),
                   Text('2. Muhammad Nasikh Afifuddin (222104009)', style: TextStyle(color: textColor)),
-                  Text('3. Ahmad Fazal (22210400)', style: TextStyle(color: textColor)),
+                  Text('3. Ahmad Fazal (222104010)', style: TextStyle(color: textColor)),
                   Text('4. Yerly Ania Saputri (222104002)', style: TextStyle(color: textColor)),
                   Text('5. Ahmad Ansori (222104001)', style: TextStyle(color: textColor)),
                   Text('6. Osok Rianto Hay (222104006)', style: TextStyle(color: textColor)),
@@ -2105,8 +1627,8 @@ class SettingPage extends StatelessWidget {
     return Scaffold(
       drawer: AppDrawer(currentPage: 'setting', isDarkMode: isDarkMode, toggleTheme: toggleTheme),
       appBar: AppBar(
-        title: Text('Setting'),
-        backgroundColor: isDarkMode ? Colors.teal : Colors.green,
+        title: const Text('Setting'),
+        backgroundColor: Colors.teal,
         actions: [
           IconButton(
             icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
@@ -2133,4 +1655,3 @@ class SettingPage extends StatelessWidget {
     );
   }
 }
-

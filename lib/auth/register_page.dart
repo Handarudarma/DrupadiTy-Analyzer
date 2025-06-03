@@ -1,48 +1,62 @@
 import 'package:flutter/material.dart';
 import 'auth_service.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<RegisterPage> createState() => _RegisterPageState();
 }
 
-
-class _LoginPageState extends State<LoginPage> {
- //controler untuk setiap fiel 
+class _RegisterPageState extends State<RegisterPage> {
+  final TextEditingController _namaController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
   final AuthService _authService = AuthService();
 
-  Future<void> _login() async {
-  final email = _emailController.text.trim();
-  final password = _passwordController.text.trim();
+  Future<void> _register() async {
+    try {
+      if (_passwordController.text != _confirmPasswordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password tidak sama')),
+        );
+        return;
+      }
 
-  if (email.isEmpty || password.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Email dan password tidak boleh kosong')),
-    );
-    return;
-  }
-
-  try {
-    final userCredential = await _authService.signInWithEmailAndPassword(email, password);
-    if (userCredential != null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login berhasil')),
+      await _authService.registerWithEmailAndPassword(
+        _emailController.text,
+        _passwordController.text,
+        _namaController.text,
+        _phoneController.text,
       );
-      Navigator.pushReplacementNamed(context, '/home');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registrasi berhasil')),
+        );
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registrasi gagal: ${e.toString()}')),
+        );
+      }
     }
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Login gagal: $e')),
-    );
   }
-}
+
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _phoneController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,155 +65,174 @@ class _LoginPageState extends State<LoginPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Header hijau
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(top: 50, bottom: 20),
               color: const Color(0xFF009966),
               child: const Center(
-                child: SizedBox.shrink(), // Tidak ada gambar atau avatar
+                child: SizedBox.shrink(),
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // Judul Login
             const Text(
-              'LOGIN',
+              'Daftar Manual',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.cyan,
+                color: Colors.white,
               ),
             ),
-
-            const SizedBox(height: 30),
-
-            // Input Email
+            const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  _buildTextField('Email', false, _emailController),
-                  const SizedBox(height: 16),
-                  _buildTextField('Password', true, _passwordController),
-                  const SizedBox(height: 16),
-
-                  // Tombol Masuk
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.cyan.shade700,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildTextField('Nama', false),
+                    const SizedBox(height: 10),
+                    _buildTextField('Email', false),
+                    const SizedBox(height: 10),
+                    _buildTextField('Password', true),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Text(
+                          '+62',
+                          style: TextStyle(color: Colors.white),
                         ),
-                      ),
-                      onPressed: _login,
-                      child: const Text(
-                        'Masuk',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Lupa password
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: _login,
-                      child: const Text(
-                        'Lupa password?',
-                        style: TextStyle(
-                          color: Colors.cyan,
-                          fontSize: 12,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildTextField('Nomor Telepon', false),
                         ),
-                      ),
+                      ],
                     ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    'Atau login langsung melalui',
-                    style: TextStyle(color: Colors.white),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Tombol login dengan Google
-                  IconButton(
-                    icon: Image.network(
-                      'https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png',
-                      height: 40,
-                    ),
-                    onPressed: () async {
-                      final user = await AuthService().signInWithGoogle();
-    
-                      if (!context.mounted) return;
-    
-                      if (user != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Login Google berhasil!')),
-                        );
-                        Navigator.pushReplacementNamed(context, '/home'); // Tambahkan navigasi ke home
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Login Google gagal!')),
-                        );
-                      }
-                    },
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Tautan daftar
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Belum punya akun?',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/register');
-                        },
+                    const SizedBox(height: 10),
+                    _buildTextField('Ulangi Password', true),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: _register,
                         child: const Text(
-                          'Masuk disini',
-                          style: TextStyle(color: Colors.cyan),
+                          'Buat Akun',
+                          style: TextStyle(fontSize: 16),
                         ),
                       ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  const Text(
-                    '@Security Analyze By Drupadity',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-
-                  const SizedBox(height: 30),
-                ],
+                    ),
+                    const SizedBox(height: 10),
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle, size: 16, color: Colors.white),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Dengan mendaftar kamu wajib menyetujui',
+                            style: TextStyle(color: Colors.white, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Syarat ketentuan & kebijakan privasi',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
+            const SizedBox(height: 20),
+            const Text(
+              'Atau daftar langsung melalui',
+              style: TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 16),
+            IconButton(
+              icon: Image.network(
+                'https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png',
+                height: 40,
+              ),
+              onPressed: () {
+                // login google
+              },
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'Sudah punya akun?',
+                  style: TextStyle(color: Colors.white),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/');
+                  },
+                  child: const Text(
+                    'Masuk disini',
+                    style: TextStyle(color: Colors.cyan),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '@Security Analyze By Drupadity',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+            const SizedBox(height: 30),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTextField(String label, bool obscure, TextEditingController controller) {
-  return TextField(
-    controller: controller,
-    obscureText: obscure,
+  Widget _buildTextField(String label, bool obscure) {
+    TextEditingController controller;
+    switch (label) {
+      case 'Nama':
+        controller = _namaController;
+        break;
+      case 'Email':
+        controller = _emailController;
+        break;
+      case 'Password':
+        controller = _passwordController;
+        break;
+      case 'Nomor Telepon':
+        controller = _phoneController;
+        break;
+      case 'Ulangi Password':
+        controller = _confirmPasswordController;
+        break;
+      default:
+        controller = TextEditingController();
+    }
+
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
       style: const TextStyle(color: Colors.black),
       decoration: InputDecoration(
         hintText: label,
+        hintStyle: TextStyle(color: Colors.grey[600]), // <- Ini kunci perbaikan
         filled: true,
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -210,3 +243,4 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+s

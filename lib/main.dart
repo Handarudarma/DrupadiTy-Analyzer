@@ -8,6 +8,7 @@ import 'dart:async'; // Timer
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -16,6 +17,7 @@ import 'package:xml/xml.dart';
 import 'models/permission_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' if (dart.library.io) 'dart:io' as html;
 import 'package:open_filex/open_filex.dart';
 
 
@@ -44,6 +46,7 @@ class SecurityAnalyzeAppState extends State<SecurityAnalyzeApp> {
   SecurityAnalyzeAppState._internal();
   
   bool isDarkMode = true;
+  bool isLoading = false;
 
   void toggleTheme() {
     setState(() {
@@ -484,76 +487,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 }
 
-Future<Uint8List?> extractAppIcon(Uint8List apkBytes, String fileName) async {
-  try {
-    // Get temporary directory
-    final tempDir = await getTemporaryDirectory();
-    final apkFile = File('${tempDir.path}/$fileName');
-    final extractDir = Directory('${tempDir.path}/extracted_$fileName');
-    
-    // Write APK bytes to temporary file
-    await apkFile.writeAsBytes(apkBytes);
-    
-    // Create extraction directory
-    if (!await extractDir.exists()) {
-      await extractDir.create(recursive: true);
-    }
-    
-    // Extract APK
-    await ZipFile.extractToDirectory(
-      zipFile: apkFile,
-      destinationDir: extractDir,
-    );
-    
-    // Read AndroidManifest.xml to get icon name
-    final manifestFile = File('${extractDir.path}/AndroidManifest.xml');
-    if (!await manifestFile.exists()) {
-      throw Exception('AndroidManifest.xml not found');
-    }
-    
-    final manifestContent = await manifestFile.readAsString();
-    final manifest = XmlDocument.parse(manifestContent);
-    
-    // Find application icon attribute
-    final application = manifest.findAllElements('application').first;
-    final iconAttribute = application.getAttribute('android:icon');
-    
-    if (iconAttribute == null) {
-      throw Exception('Icon attribute not found in manifest');
-    }
-    
-    // Get icon path
-    String iconPath = iconAttribute.replaceAll('@', '');
-    if (iconPath.startsWith('drawable/')) {
-      iconPath = 'res/${iconPath}';
-    } else if (iconPath.startsWith('mipmap/')) {
-      iconPath = 'res/${iconPath}';
-    }
-    
-    // Try to find the icon file
-    final iconFile = File('${extractDir.path}/$iconPath.png');
-    if (await iconFile.exists()) {
-      final iconBytes = await iconFile.readAsBytes();
-      
-      // Cleanup
-      await apkFile.delete();
-      await extractDir.delete(recursive: true);
-      
-      return iconBytes;
-    }
-    
-    // Cleanup
-    await apkFile.delete();
-    await extractDir.delete(recursive: true);
-    
-    return null;
-  } catch (e) {
-    print('Error extracting app icon: $e');
-    return null;
-  }
-}
-
-Future<void> uploadAndAnalyzeApk(BuildContext context) async {
+Future<void> uploadAndAnalyzeApk(BuildContext context, {Function(double?)? onProgress}) async {
   final state = SecurityAnalyzeAppState();
   const apiKey = '55ab018480512272a0ef9eb7d471fde09422e956c4e646bdc456ccc25c9f86d2';
   const baseUrl = 'http://145.79.12.167:8000';
@@ -576,13 +510,8 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
     final fileBytes = result.files.first.bytes!;
     final fileName = result.files.first.name;
 
-    // Extract app icon from APK
-    final iconBytes = await extractAppIcon(fileBytes, fileName);
-
     if (!context.mounted) return;
-    final progress = ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Mengupload APK...'))
-    );
+    onProgress?.call(0.0); // Mulai upload
 
     // Upload APK
     final uri = Uri.parse('$baseUrl/api/v1/upload');
@@ -592,9 +521,9 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
 
     final response = await request.send();
     if (!context.mounted) return;
-    progress.close();
 
     if (response.statusCode != 200) {
+      onProgress?.call(null);
       throw Exception('Upload gagal: ${response.statusCode}');
     }
 
@@ -602,22 +531,20 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
     final uploadData = jsonDecode(respStr);
 
     if (uploadData['hash'] == null) {
+      onProgress?.call(null);
       throw Exception(uploadData['error'] ?? 'Gagal upload APK');
     }
 
+    onProgress?.call(0.5); // Upload selesai, mulai analisis
+
     final apkHash = uploadData['hash'];
 
-    // Scan APK
-    final scanResp = await http.post(
-      Uri.parse('$baseUrl/api/v1/scan'),
-      headers: {
-        'Authorization': apiKey,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: 'hash=$apkHash',
-    );
+    print('\n=== DEBUG: APK ANALYSIS START ===');
+    print('APK Hash: $apkHash');
+    print('File Name: $fileName');
 
-    // Get detailed JSON report
+    // Get detailed JSON report first to get icon info
+    print('\n--- Getting Report JSON ---');
     final jsonResp = await http.post(
       Uri.parse('$baseUrl/api/v1/report_json'),
       headers: {
@@ -627,32 +554,154 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
       body: 'hash=$apkHash',
     );
 
-    final scanData = jsonDecode(scanResp.body);
     final jsonData = jsonDecode(jsonResp.body);
+    print('Report JSON Status Code: ${jsonResp.statusCode}');
+    print('Report Contains Icon Path: ${jsonData.containsKey('icon_path')}');
+    if (jsonData.containsKey('icon_path')) {
+      print('Icon Path: ${jsonData['icon_path']}');
+    }
+    
+    // Get app icon using icon path from report
+    print('\n--- Getting App Icon ---');
+    Uint8List? appIcon;
+    if (jsonData['icon_path'] != null) {
+      try {
+        // Get icon through compare endpoint
+        final iconResp = await http.post(
+          Uri.parse('$baseUrl/api/v1/compare'),
+          headers: {
+            'Authorization': apiKey,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: 'hash1=$apkHash&scan_type=apk',
+        );
+
+        print('Icon Request Status Code: ${iconResp.statusCode}');
+        print('Response Headers: ${iconResp.headers}');
+        
+        if (iconResp.statusCode == 200) {
+          try {
+            final responseData = jsonDecode(iconResp.body);
+            print('Compare Response Keys: ${responseData.keys.join(', ')}');
+            
+            // Coba dapatkan icon dari berbagai kemungkinan key
+            String? base64Icon;
+            if (responseData['icon1'] != null) {
+              base64Icon = responseData['icon1'];
+              print('Found icon in icon1');
+            } else if (responseData['app1_icon'] != null) {
+              base64Icon = responseData['app1_icon'];
+              print('Found icon in app1_icon');
+            } else if (responseData['base64_icon1'] != null) {
+              base64Icon = responseData['base64_icon1'];
+              print('Found icon in base64_icon1');
+            }
+
+            if (base64Icon != null) {
+              try {
+                // Remove data URL prefix if present
+                if (base64Icon.contains(',')) {
+                  base64Icon = base64Icon.split(',')[1];
+                }
+                // Remove any whitespace
+                base64Icon = base64Icon.trim();
+                
+                appIcon = base64Decode(base64Icon);
+                print('Success! Icon decoded - Size: ${appIcon.length} bytes');
+              } catch (e) {
+                print('Error decoding base64 icon: $e');
+                if (base64Icon != null) {
+                  print('Base64 string length: ${base64Icon.length}');
+                  print('First 100 chars of base64: ${base64Icon.substring(0, min(100, base64Icon.length))}');
+                }
+              }
+            } else {
+              print('No icon found in compare response');
+              print('Available keys: ${responseData.keys.join(', ')}');
+            }
+          } catch (e) {
+            print('Error processing compare response: $e');
+          }
+        } else {
+          print('Failed to get icon - Status: ${iconResp.statusCode}');
+          print('Error Response: ${iconResp.body}');
+        }
+
+      } catch (e) {
+        print('Network Error Loading Icon: $e');
+      }
+    } else {
+      print('No Icon Path Found in Report');
+      print('\nAvailable keys in report_json:');
+      jsonData.keys.forEach((key) => print('  $key'));
+    }
+
+    if (appIcon == null) {
+      print('\nWARNING: Failed to load icon from all attempted methods');
+    }
+
+    // Get scorecard data
+    print('\n--- Getting Scorecard ---');
+    final scoreResp = await http.post(
+      Uri.parse('$baseUrl/api/v1/scorecard'),
+      headers: {
+        'Authorization': apiKey,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'hash=$apkHash',
+    );
+
+    print('Scorecard Status Code: ${scoreResp.statusCode}');
+    final scoreData = jsonDecode(scoreResp.body);
+    print('Security Score: ${scoreData['security_score']}');
+    print('Trackers: ${scoreData['trackers_detected']}');
+
+    // Scan APK
+    print('\n--- Scanning APK ---');
+    final scanResp = await http.post(
+      Uri.parse('$baseUrl/api/v1/scan'),
+      headers: {
+        'Authorization': apiKey,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'hash=$apkHash',
+    );
+
+    print('Scan Status Code: ${scanResp.statusCode}');
+    final scanData = jsonDecode(scanResp.body);
+
+    onProgress?.call(1.0); // Analisis selesai
 
     // Combine data from scan and detailed JSON report
     final Map<String, dynamic> analysisData = {
       ...Map<String, dynamic>.from(scanData),
       ...Map<String, dynamic>.from(jsonData),
       'file_name': fileName,
-      'security_score': jsonData['average_cvss'] ?? 50,
-      'tracker_count': jsonData['trackers']?.length ?? 0,
-      'total_trackers': 432,
       'app_name': jsonData['app_name'] ?? fileName.split('.').first,
+      'app_icon': appIcon,
+      'icon_path': jsonData['icon_path'],
+      'security_score': scoreData['security_score'] ?? 0,
+      'trackers': scoreData['trackers_detected'] ?? 0,
       'permissions': jsonData['permissions'] ?? [],
       'certificate_analysis': jsonData['certificate_analysis'] ?? {},
       'api_analysis': jsonData['android_api'] ?? {},
       'malware_analysis': {
         'result': jsonData['malware_analysis']?['result'] ?? 'unknown',
-        'score': jsonData['average_cvss'] ?? 0,
         'detections': jsonData['malware_analysis']?['findings'] ?? [],
       },
-      'app_icon': iconBytes,
       'hash': apkHash,
     };
 
+    print('\n=== Analysis Complete ===');
+    print('App Name: ${analysisData['app_name']}');
+    print('Has Icon: ${appIcon != null}');
+    print('Security Score: ${analysisData['security_score']}');
+    print('Trackers: ${analysisData['trackers']}');
+    print('========================\n');
+
     if (!context.mounted) return;
-    
+    onProgress?.call(null);
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -665,6 +714,7 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
     );
 
   } catch (e) {
+    onProgress?.call(null);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Gagal analisis APK: $e')),
@@ -674,26 +724,39 @@ Future<void> uploadAndAnalyzeApk(BuildContext context) async {
 
 
 //homepage
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   final VoidCallback toggleTheme;
   final bool isDarkMode;
 
   const HomePage({super.key, required this.toggleTheme, required this.isDarkMode});
 
   @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  double? progress;
+
+  void setProgress(double? value) {
+    setState(() {
+      progress = value;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    Color textColor = isDarkMode ? Colors.white : Colors.black;
+    Color textColor = widget.isDarkMode ? Colors.white : Colors.black;
     Color iconColor = Colors.teal;
 
     return Scaffold(
-      drawer: AppDrawer(currentPage: 'home', isDarkMode: isDarkMode, toggleTheme: toggleTheme),
+      drawer: AppDrawer(currentPage: 'home', isDarkMode: widget.isDarkMode, toggleTheme: widget.toggleTheme),
       appBar: AppBar(
         title: const Text('Home'),
         backgroundColor: Colors.teal,
         actions: [
           IconButton(
-            icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
-            onPressed: toggleTheme,
+            icon: Icon(widget.isDarkMode ? Icons.light_mode : Icons.dark_mode),
+            onPressed: widget.toggleTheme,
           ),
         ],
       ),
@@ -712,12 +775,24 @@ class HomePage extends StatelessWidget {
                     icon: const Icon(Icons.upload_file),
                     label: const Text('Upload & Analyze'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isDarkMode ? Colors.white : Colors.black,
-                      foregroundColor: isDarkMode ? Colors.black : Colors.white,
+                      backgroundColor: widget.isDarkMode ? Colors.white : Colors.black,
+                      foregroundColor: widget.isDarkMode ? Colors.black : Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
-                    onPressed: () => uploadAndAnalyzeApk(context),
+                    onPressed: () => uploadAndAnalyzeApk(context, onProgress: setProgress),
                   ),
+                  if (progress != null)
+                    Container(
+                      width: 200, // Sama dengan lebar tombol
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: Column(
+                        children: [
+                          LinearProgressIndicator(value: progress),
+                          const SizedBox(height: 8),
+                          Text('${((progress ?? 0) * 100).toStringAsFixed(0)}%'),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -826,28 +901,25 @@ class _ResultPageState extends State<ResultPage> with SingleTickerProviderStateM
       final bytes = pdfResp.bodyBytes;
       
       if (kIsWeb) {
-        // For web platform, we'll use a different approach
-        // This feature is not supported in web version
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Download PDF tidak tersedia di versi web')),
-        );
+        // Web platform download implementation
+        final blob = html.Blob([bytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', '${widget.analysisData['file_name']}_report.pdf')
+          ..click();
+        html.Url.revokeObjectUrl(url);
       } else {
         // Mobile platform download implementation
         final directory = await getApplicationDocumentsDirectory();
         final file = File('${directory.path}/${widget.analysisData['file_name']}_report.pdf');
         await file.writeAsBytes(bytes);
-        
-        final result = await OpenFilex.open(file.path);
-        if (result.type != ResultType.done) {
-          throw Exception('Gagal membuka file PDF');
-        }
+        await OpenFilex.open(file.path);
       }
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Laporan PDF berhasil diunduh')),
       );
     } catch (e) {
-      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal mengunduh laporan PDF: $e')),
       );
@@ -909,208 +981,254 @@ class InfoPage extends StatelessWidget {
   Widget build(BuildContext context) {
     Color textColor = isDarkMode ? Colors.white : Colors.black;
     Color cardColor = isDarkMode ? Colors.grey[900]! : Colors.white;
+    double screenWidth = MediaQuery.of(context).size.width;
+    bool isSmallScreen = screenWidth < 600;
     
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Card(
-            color: cardColor,
-            elevation: isDarkMode ? 0 : 1,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      if (analysisData['app_icon'] != null)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.memory(
-                            analysisData['app_icon'],
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      else
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.android,
-                            size: 40,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              analysisData['app_name'] ?? 'Unknown App',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Text(
-                                  'Security Score ',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: textColor,
-                                  ),
-                                ),
-                                Text(
-                                  '${analysisData['security_score']}/100',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.orange,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Text(
-                                  'Trackers Detection ',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: textColor,
-                                  ),
-                                ),
-                                Text(
-                                  '${analysisData['tracker_count']}/${analysisData['total_trackers']}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // FILE INFORMATION
-          Card(
-            color: cardColor,
-            elevation: isDarkMode ? 0 : 1,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'FILE INFORMATION',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('File Name', analysisData['file_name'] ?? 'Unknown'),
-                  _buildInfoRow('Size', analysisData['size'] ?? '2.61MB'),
-                  _buildInfoRow('MD5', analysisData['md5'] ?? ''),
-                  _buildInfoRow('SHA1', analysisData['sha1'] ?? ''),
-                  _buildInfoRow('SHA256', analysisData['sha256'] ?? ''),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // APP INFORMATION
-          Card(
-            color: cardColor,
-            elevation: isDarkMode ? 0 : 1,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'APP INFORMATION',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('App Name', analysisData['app_name'] ?? ''),
-                  _buildInfoRow('Package Name', analysisData['package_name'] ?? ''),
-                  _buildInfoRow('Main Activity', analysisData['main_activity'] ?? ''),
-                  _buildInfoRow('Target SDK', analysisData['target_sdk'] ?? ''),
-                  _buildInfoRow('Min SDK', analysisData['min_sdk'] ?? ''),
-                  _buildInfoRow('Android Version Name', analysisData['version_name'] ?? ''),
-                  _buildInfoRow('Android Version Code', analysisData['version_code']?.toString() ?? ''),
-                ],
-              ),
-            ),
-          ),
-
-          // PLAYSTORE INFORMATION
-          if (analysisData['playstore_details'] != null) ...[
-            const SizedBox(height: 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 16 : 24,
+        vertical: 16
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 800),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              color: cardColor,
+              child: Padding(
+                padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (analysisData['app_icon'] != null)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Builder(
+                              builder: (context) {
+                                print('Attempting to display icon...');
+                                print('Icon data length: ${analysisData['app_icon'].length}');
+                                print('Icon path: ${analysisData['icon_path']}');
+                                return Image.memory(
+                                  analysisData['app_icon'],
+                                  width: isSmallScreen ? 60 : 80,
+                                  height: isSmallScreen ? 60 : 80,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    print('Error displaying icon: $error');
+                                    return Container(
+                                      width: isSmallScreen ? 60 : 80,
+                                      height: isSmallScreen ? 60 : 80,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        Icons.android,
+                                        size: isSmallScreen ? 30 : 40,
+                                        color: Colors.grey[600],
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          )
+                        else
+                          Container(
+                            width: isSmallScreen ? 60 : 80,
+                            height: isSmallScreen ? 60 : 80,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.android,
+                              size: isSmallScreen ? 30 : 40,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        SizedBox(width: isSmallScreen ? 16 : 24),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                analysisData['app_name'] ?? 'Unknown App',
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 20 : 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 16,
+                                runSpacing: 8,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Security Score ',
+                                        style: TextStyle(
+                                          fontSize: isSmallScreen ? 14 : 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${analysisData['security_score']}/100',
+                                        style: TextStyle(
+                                          fontSize: isSmallScreen ? 14 : 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: _getScoreColor(analysisData['security_score']),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Trackers Detection ',
+                                        style: TextStyle(
+                                          fontSize: isSmallScreen ? 14 : 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${analysisData['trackers']}/432',
+                                        style: TextStyle(
+                                          fontSize: isSmallScreen ? 14 : 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // FILE INFORMATION
+            Card(
+              margin: const EdgeInsets.only(bottom: 16),
               color: cardColor,
               elevation: isDarkMode ? 0 : 1,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'PLAYSTORE INFORMATION',
+                      'FILE INFORMATION',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: textColor,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildInfoRow('Title', analysisData['playstore_details']['title'] ?? ''),
-                    _buildInfoRow('Score', analysisData['playstore_details']['score']?.toString() ?? ''),
-                    _buildInfoRow('Installs', analysisData['playstore_details']['installs'] ?? ''),
-                    _buildInfoRow('Price', analysisData['playstore_details']['price']?.toString() ?? 'Free'),
-                    _buildInfoRow('Developer', analysisData['playstore_details']['developer'] ?? ''),
-                    if (analysisData['playstore_details']['developer_address'] != null)
-                      _buildInfoRow('Developer Address', analysisData['playstore_details']['developer_address']),
-                    if (analysisData['playstore_details']['developer_email'] != null)
-                      _buildInfoRow('Developer Email', analysisData['playstore_details']['developer_email']),
-                    if (analysisData['playstore_details']['developer_website'] != null)
-                      _buildInfoRow('Developer Website', analysisData['playstore_details']['developer_website']),
+                    _buildInfoRow('File Name', analysisData['file_name'] ?? 'Unknown'),
+                    _buildInfoRow('Size', analysisData['size'] ?? '2.61MB'),
+                    _buildInfoRow('MD5', analysisData['md5'] ?? ''),
+                    _buildInfoRow('SHA1', analysisData['sha1'] ?? ''),
+                    _buildInfoRow('SHA256', analysisData['sha256'] ?? ''),
                   ],
                 ),
               ),
             ),
+
+            // APP INFORMATION
+            Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              color: cardColor,
+              elevation: isDarkMode ? 0 : 1,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'APP INFORMATION',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildInfoRow('App Name', analysisData['app_name'] ?? ''),
+                    _buildInfoRow('Package Name', analysisData['package_name'] ?? ''),
+                    _buildInfoRow('Main Activity', analysisData['main_activity'] ?? ''),
+                    _buildInfoRow('Target SDK', analysisData['target_sdk'] ?? ''),
+                    _buildInfoRow('Min SDK', analysisData['min_sdk'] ?? ''),
+                    _buildInfoRow('Android Version Name', analysisData['version_name'] ?? ''),
+                    _buildInfoRow('Android Version Code', analysisData['version_code']?.toString() ?? ''),
+                  ],
+                ),
+              ),
+            ),
+
+            // PLAYSTORE INFORMATION
+            if (analysisData['playstore_details'] != null)
+              Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                color: cardColor,
+                elevation: isDarkMode ? 0 : 1,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'PLAYSTORE INFORMATION',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInfoRow('Title', analysisData['playstore_details']['title'] ?? ''),
+                      _buildInfoRow('Score', analysisData['playstore_details']['score']?.toString() ?? ''),
+                      _buildInfoRow('Installs', analysisData['playstore_details']['installs'] ?? ''),
+                      _buildInfoRow('Price', analysisData['playstore_details']['price']?.toString() ?? 'Free'),
+                      _buildInfoRow('Developer', analysisData['playstore_details']['developer'] ?? ''),
+                      if (analysisData['playstore_details']['developer_address'] != null)
+                        _buildInfoRow('Developer Address', analysisData['playstore_details']['developer_address']),
+                      if (analysisData['playstore_details']['developer_email'] != null)
+                        _buildInfoRow('Developer Email', analysisData['playstore_details']['developer_email']),
+                      if (analysisData['playstore_details']['developer_website'] != null)
+                        _buildInfoRow('Developer Website', analysisData['playstore_details']['developer_website']),
+                    ],
+                  ),
+                ),
+              ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -1135,6 +1253,16 @@ class InfoPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Color _getScoreColor(double score) {
+    if (score >= 80) {
+      return Colors.green;
+    } else if (score >= 50) {
+      return Colors.yellow;
+    } else {
+      return Colors.red;
+    }
   }
 }
 
@@ -1216,8 +1344,10 @@ class PermissionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color textColor = isDarkMode ? Colors.white : Colors.black;
-    Color headerBgColor = isDarkMode ? Colors.grey[800]! : Colors.grey[200]!;
     Color cardColor = isDarkMode ? Colors.grey[900]! : Colors.white;
+    Color headerBgColor = isDarkMode ? Colors.grey[800]! : Colors.grey[200]!;
+    double screenWidth = MediaQuery.of(context).size.width;
+    bool isSmallScreen = screenWidth < 600;
     
     // Debug print untuk memeriksa data yang diterima
     print('=== Permission Data ===');
@@ -1259,134 +1389,218 @@ class PermissionPage extends StatelessWidget {
     final List<Permission> permissions = Permission.fromJsonList(permissionsData);
     
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 16 : 24,
+        vertical: 16
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              Icon(Icons.security_outlined, color: textColor),
-              const SizedBox(width: 8),
+              Icon(
+                Icons.security_outlined, 
+                size: isSmallScreen ? 24 : 28, 
+                color: textColor
+              ),
+              SizedBox(width: isSmallScreen ? 8 : 12),
               Text(
                 'APPLICATION PERMISSIONS',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: isSmallScreen ? 20 : 24,
                   fontWeight: FontWeight.bold,
                   color: textColor,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-            decoration: BoxDecoration(
-              color: headerBgColor,
-              borderRadius: BorderRadius.circular(4),
+          SizedBox(height: isSmallScreen ? 16 : 24),
+          Card(
+            margin: EdgeInsets.zero,
+            color: cardColor,
+            elevation: isDarkMode ? 0 : 1,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'PERMISSION',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
+                if (!isSmallScreen)
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      vertical: isSmallScreen ? 12 : 16,
+                      horizontal: isSmallScreen ? 16 : 24
+                    ),
+                    decoration: BoxDecoration(
+                      color: headerBgColor,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            'PERMISSION',
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 14 : 16,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            'STATUS',
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 14 : 16,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                        ),
+                        if (!isSmallScreen) ...[
+                          Expanded(
+                            child: Text(
+                              'INFO',
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 14 : 16,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              'DESCRIPTION',
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 14 : 16,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Text(
-                    'STATUS',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
+                if (permissions.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
+                    child: Text(
+                      'No permissions found',
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: isSmallScreen ? 14 : 16,
+                        fontStyle: FontStyle.italic
+                      ),
+                      textAlign: TextAlign.center,
                     ),
+                  )
+                else
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: permissions.length,
+                    itemBuilder: (context, index) {
+                      final permission = permissions[index];
+                      return Container(
+                        padding: EdgeInsets.symmetric(
+                          vertical: isSmallScreen ? 12 : 16,
+                          horizontal: isSmallScreen ? 16 : 24
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: isDarkMode ? Colors.grey[800]! : Colors.grey[300]!,
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        child: isSmallScreen
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  permission.name,
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                _buildStatusBadge(permission.status),
+                                const SizedBox(height: 8),
+                                if (permission.info.isNotEmpty) ...[
+                                  Text(
+                                    'Info: ${permission.info}',
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                ],
+                                Text(
+                                  permission.description,
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    permission.name,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 14,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    child: _buildStatusBadge(permission.status),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    permission.info,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 14,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    permission.description,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 14,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                      );
+                    },
                   ),
-                ),
-                Expanded(
-                  child: Text(
-                    'INFO',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'DESCRIPTION',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
-                  ),
-                ),
               ],
-            ),
-          ),
-          if (permissions.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'No permissions found',
-                style: TextStyle(color: textColor, fontStyle: FontStyle.italic),
-              ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: permissions.length,
-              itemBuilder: (context, index) {
-                final permission = permissions[index];
-                return Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: isDarkMode ? Colors.grey[800]! : Colors.grey[300]!,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          permission.name,
-                          style: TextStyle(color: textColor),
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildStatusBadge(permission.status),
-                      ),
-                      Expanded(
-                        child: Text(
-                          permission.info,
-                          style: TextStyle(color: textColor),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          permission.description,
-                          style: TextStyle(color: textColor),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              'Showing ${permissions.length} entries',
-              style: TextStyle(color: textColor),
             ),
           ),
         ],
@@ -1413,7 +1627,7 @@ class PermissionPage extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(4),
@@ -1423,7 +1637,9 @@ class PermissionPage extends StatelessWidget {
         style: TextStyle(
           color: textColor,
           fontSize: 12,
+          fontWeight: FontWeight.bold,
         ),
+        textAlign: TextAlign.center,
       ),
     );
   }

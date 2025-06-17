@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "425004809724",
+    "firebase_url": "https://drupadity-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "drupadity",
+    "storage_bucket": "drupadity.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:425004809724:android:9b6ebccdbf393eb22cc679",
+        "android_client_info": {
+          "package_name": "com.example.login"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "425004809724-4g9rp2ltl55r0h1eeiiv24v46e3apqoe.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.login",
+            "certificate_hash": "495b589c5a5d21395bd39f5e67351c6c207be0c9"
+          }
+        },
+        {
+          "client_id": "425004809724-177h21rjkhn10hrsemipco7jpeg57o44.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzLCt53-su6HdWMV3wjdDcIRaY0uGWiWo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "425004809724-177h21rjkhn10hrsemipco7jpeg57o44.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "425004809724-52nposa6la4j9o996rlt0dvt06ths5kn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.login"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

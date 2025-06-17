@@ -11,6 +11,7 @@
 ## Table of Contents
 
 - [Pendahuluan](#pendahuluan)
+- [Unduh Aplikasi](#unduh-aplikasi)
 - [Fitur Utama](#fitur-utama)
 - [Teknologi yang Digunakan](#teknologi-yang-digunakan)
 - [Status Proyek](#status-proyek)
@@ -33,6 +34,18 @@ Aplikasi ini bertujuan untuk memberikan lapisan keamanan tambahan bagi seluruh l
 <p align="center">
   <img src="https://raw.githubusercontent.com/Handarudarma/DrupadiTy-Analyzer/main/Drupadity/assets/tampilan/tampilan.png" alt="Screenshot Tampilan Aplikasi Drupadity Analyzer" width="600">
 </p>
+
+## Unduh Aplikasi
+
+Anda dapat mengunduh versi terbaru aplikasi Drupadity Analyzer melalui Google Drive.
+
+<p align="center">
+  <a href="https://drive.google.com/drive/folders/1-_ymg0QW_CIfXiQyMT0ZYSVkHRXNjolZ?usp=drive_link" target="_blank">
+    <img src="https://img.shields.io/badge/Unduh_APK_via_Google_Drive-4285F4?style=for-the-badge&logo=googledrive&logoColor=white" alt="Unduh APK via Google Drive">
+  </a>
+</p>
+
+**Catatan:** Karena aplikasi belum rilis di Play Store/App Store, Anda mungkin perlu mengizinkan instalasi dari sumber tidak dikenal di pengaturan perangkat Android Anda.
 
 ## Fitur Utama
 
@@ -97,11 +110,29 @@ Anda dapat melihat desain UI/UX lengkap dari aplikasi Drupadity Analyzer melalui
 ## Kontributor
 
 Proyek ini dibuat oleh:
-1. Handaru Darma Putra (222104004)
-2. Muhammad Nasikh Afifuddin (222104009)
-3. Ahmad Fazal (222104010)
-4. Yerly Ania Saputri (222104002)
-5. Ahmad Ansori (222104001)
+1.  Handaru Darma Putra (222104004)
+2.  Muhammad Nasikh Afifuddin (222104009)
+3.  Ahmad Fazal (222104010)
+4.  Yerly Ania Saputri (222104002)
+5.  Ahmad Ansori (222104001)
+
+<br> <p align="left">
+  <a href="https://github.com/Handarudarma">
+    <img src="https://avatars.githubusercontent.com/u/117247835?v=4" width="80px" alt="Handaru Darma Putra" style="border-radius:50%; margin-right: 15px;">
+  </a>
+  <a href="https://github.com/MNAfifuddin">
+    <img src="https://avatars.githubusercontent.com/u/120367724?v=4" width="80px" alt="Muhammad Nasikh Afifuddin" style="border-radius:50%; margin-right: 15px;">
+  </a>
+  <a href="https://github.com/afazal-z">
+    <img src="https://avatars.githubusercontent.com/u/121700820?v=4" width="80px" alt="Ahmad Fazal" style="border-radius:50%; margin-right: 15px;">
+  </a>
+  <a href="https://github.com/yerlyania20">
+    <img src="https://avatars.githubusercontent.com/u/201778878?v=4" width="80px" alt="Yerly Ania Saputri" style="border-radius:50%; margin-right: 15px;">
+  </a>
+  <a href="https://github.com/AhmadAnsori">
+    <img src="https://avatars.githubusercontent.com/u/116022174?v=4" width="80px" alt="Ahmad Ansori" style="border-radius:50%; margin-right: 15px;">
+  </a>
+</p>
 
 Jika Anda ingin berkontribusi pada proyek ini, silakan ajukan Pull Request atau [ajukan isu baru](https://github.com/Handarudarma/DrupadiTy-Analyzer/issues/new) untuk diskusi.
 

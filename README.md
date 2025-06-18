@@ -51,12 +51,14 @@ Anda dapat mengunduh versi terbaru aplikasi Drupadity Analyzer melalui Google Dr
 
 ## Vote Aplikasi Kami
 
-Bantu kami meningkatkan aplikasi Drupadity Analyzer dengan memberikan vote Anda.
+Kami sangat menghargai masukan Anda! Bantu kami meningkatkan aplikasi Drupadity Analyzer dengan memberikan vote Anda.
 
 <p align="center">
   <a href="https://docs.google.com/forms/d/e/1FAIpQLSf_xqpXl3mQDgY76SHSivk3dIKMCnY1nZzZFYqjIf4_QcYMIA/viewform" target="_blank">
     <img src="https://img.shields.io/badge/Vote_Aplikasi_Drupadity-blue?style=for-the-badge&logo=google-forms&logoColor=white" alt="Vote Aplikasi Drupadity">
   </a>
+  <br>
+  <img src="http://googleusercontent.com/image_generation_content/0" alt="QR Code Vote Aplikasi" width="150" height="150">
 </p>
 ## Fitur Utama
 

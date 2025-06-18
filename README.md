@@ -48,6 +48,16 @@ Anda dapat mengunduh versi terbaru aplikasi Drupadity Analyzer melalui Google Dr
 </p>
 
 **Catatan:** Karena aplikasi belum rilis di Play Store/App Store, Anda mungkin perlu mengizinkan instalasi dari sumber tidak dikenal di pengaturan perangkat Android Anda.
+
+## Vote Aplikasi Kami
+
+Bantu kami meningkatkan aplikasi Drupadity Analyzer dengan memberikan vote Anda.
+
+<p align="center">
+  <a href="https://docs.google.com/forms/d/e/1FAIpQLSf_xqpXl3mQDgY76SHSivk3dIKMCnY1nZzZFYqjIf4_QcYMIA/viewform" target="_blank">
+    <img src="https://img.shields.io/badge/Vote_Aplikasi_Drupadity-blue?style=for-the-badge&logo=google-forms&logoColor=white" alt="Vote Aplikasi Drupadity">
+  </a>
+</p>
 ## Fitur Utama
 
 Berikut adalah beberapa fitur unggulan yang ditawarkan oleh Drupadity Analyzer:

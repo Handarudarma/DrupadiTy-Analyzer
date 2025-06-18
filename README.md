@@ -47,7 +47,7 @@ Anda dapat mengunduh versi terbaru aplikasi Drupadity Analyzer melalui Google Dr
   <img src="https://quickchart.io/qr?text=https://drive.google.com/drive/folders/1-_ymg0QW_CIfXiQyMT0ZYSVkHRXNjolZ?usp=drive_link" alt="QR Code Unduh Aplikasi" width="150" height="150">
 </p>
 
-**Catatan:** Karena aplikasi belum rilis di Play Store/App Store, Anda mungkin perlu mengizinkan instalasi dari sumber tidak dikenal di pengaturan perangkat Android Anda.
+**Catatan:** Karena aplikasi belum rilis di Play Store/App Store, Anda mungkin perlu mengizinkan instalasi dari sumber tidak dikenal di pengaturan perangkat Android Android Anda.
 
 ## Vote Aplikasi Kami
 
@@ -58,8 +58,10 @@ Kami sangat menghargai masukan Anda! Bantu kami meningkatkan aplikasi Drupadity 
     <img src="https://img.shields.io/badge/Vote_Aplikasi_Drupadity-blue?style=for-the-badge&logo=google-forms&logoColor=white" alt="Vote Aplikasi Drupadity">
   </a>
   <br>
-  <img src="http://googleusercontent.com/image_generation_content/0" alt="QR Code Vote Aplikasi" width="150" height="150">
+  <img src="https://quickchart.io/qr?text=https://docs.google.com/forms/d/e/1FAIpQLSf_xqpXl3mQDgY76SHSivk3dIKMCnY1nZzZFYqjIf4_QcYMIA/viewform" alt="QR Code Vote Aplikasi" width="150" height="150">
 </p>
+
+
 ## Fitur Utama
 
 Berikut adalah beberapa fitur unggulan yang ditawarkan oleh Drupadity Analyzer:

@@ -43,10 +43,11 @@ Anda dapat mengunduh versi terbaru aplikasi Drupadity Analyzer melalui Google Dr
   <a href="https://drive.google.com/drive/folders/1-_ymg0QW_CIfXiQyMT0ZYSVkHRXNjolZ?usp=drive_link" target="_blank">
     <img src="https://img.shields.io/badge/Unduh_APK_via_Google_Drive-4285F4?style=for-the-badge&logo=googledrive&logoColor=white" alt="Unduh APK via Google Drive">
   </a>
+  <br>
+  <img src="https://quickchart.io/qr?text=https://drive.google.com/drive/folders/1-_ymg0QW_CIfXiQyMT0ZYSVkHRXNjolZ?usp=drive_link" alt="QR Code Unduh Aplikasi" width="150" height="150">
 </p>
 
 **Catatan:** Karena aplikasi belum rilis di Play Store/App Store, Anda mungkin perlu mengizinkan instalasi dari sumber tidak dikenal di pengaturan perangkat Android Anda.
-
 ## Fitur Utama
 
 Berikut adalah beberapa fitur unggulan yang ditawarkan oleh Drupadity Analyzer:
